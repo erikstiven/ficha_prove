@@ -7503,12 +7503,12 @@ function validarEstadoUAFEProveedor($id_clpv)
     $cumple   = proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
     $bloquear = !$cumple;
 
-    $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
-
-    $estadoVisual = $bloquear ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
+    $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
     if ($estadoVisual === '' && empty($id_clpv)) {
         $estadoVisual = 'AC';
     }
+
+    $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
 
     if ($estadoVisual !== '') {
         $oReturn->script("editar('$estadoVisual');");
@@ -8159,10 +8159,18 @@ function consultarAdjuntosUafe($aForm = '')
 
     $oReturn->assign("divReporteAdjuntosUafe", "innerHTML", $html);
 
-    $cumple   = proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
-    $bloquear = !$cumple;
+    $cumple       = proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
+    $bloquear     = !$cumple;
+    $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
 
-    $oReturn->script("editar('" . ($bloquear ? 'PE' : 'AC') . "');");
+    if ($estadoVisual === '' && empty($id_clpv)) {
+        $estadoVisual = 'AC';
+    }
+
+    if ($estadoVisual !== '') {
+        $oReturn->script("editar('$estadoVisual');");
+    }
+
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
 
     return $oReturn;
@@ -8212,13 +8220,18 @@ function guardarAdjuntosUAFE($id_clpv)
 
     sincronizarEstadoProveedorPorUafe($idempresa, $id_clpv, $bloquearEstado);
 
+    $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
+    if ($estadoVisual === '' && $bloquearEstado) {
+        $estadoVisual = 'PE';
+    } elseif ($estadoVisual === '') {
+        $estadoVisual = 'AC';
+    }
+
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquearEstado ? 'true' : 'false') . ");");
 
-    $estadoVisual = $bloquearEstado ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-    if ($estadoVisual === '') {
-        $estadoVisual = $bloquearEstado ? 'PE' : 'AC';
+    if ($estadoVisual !== '') {
+        $oReturn->script("editar('$estadoVisual');");
     }
-    $oReturn->script("editar('$estadoVisual');");
 
     if ($usaUafe) {
         if ($cumpleDespues) {

@@ -10,13 +10,5 @@ function habilitarEstadoProveedor(bloquear) {
         r.disabled = bloquearEstado;
     });
 
-    if (bloquearEstado) {
-        const algunoMarcado = Array.from(radios).some((r) => r.checked);
-        if (!algunoMarcado) {
-            const pe = document.getElementById("PE");
-            if (pe) pe.checked = true;
-        }
-    }
-
     console.log("Radios " + (bloquearEstado ? "bloqueados" : "habilitados"));
 }
