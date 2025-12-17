@@ -1226,18 +1226,6 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                                         </td>
                 </tr>';
 
-        if ($usaUAFE) {
-            $sHtml .= '<tr>
-                            <td></td>
-                            <td></td>
-                            <td colspan="2" style="text-align: right;">
-                                <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
-                                    Notificar Documentación UAFE Requerida
-                                    <span class="glyphicon glyphicon-envelope"></span>
-                                </button>
-                            </td>
-                    </tr>';
-        }
         $sHtml .= '<tr>
                         <td>' . $ifu->ObjetoHtmlLBL('clpv_cod_sucu') . '</td>
                         <td>' . $ifu->ObjetoHtml('clpv_cod_sucu') . '</td>
@@ -1353,7 +1341,14 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 <td><i class="" aria-hidden="true"> Correo Contacto</i></td>
 
                 <td>
-                    <input class="form-control" type="text" id="correo_contacto_" name="correo_contacto_" />
+                    <div class="input-group input-group-sm" style="width: 100%;">
+                        <input class="form-control" type="text" id="correo_contacto_" name="correo_contacto_" />
+                        " . ($usaUAFE ? "<span class=\"input-group-addon\" style=\"background: transparent; border: none; padding-left: 6px; padding-right: 6px;\">
+                                <a href=\"#\" onclick=\"enviar_mail(); return false;\" class=\"text-muted\" title=\"Solicitar documentación UAFE\" style=\"font-size: 12px; text-decoration: underline;\">
+                                    <span class=\"glyphicon glyphicon-envelope\" aria-hidden=\"true\"></span> Notificar UAFE
+                                </a>
+                            </span>" : "") . "
+                    </div>
                 </td>
 
 
