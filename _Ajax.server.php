@@ -1015,10 +1015,23 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
 
                 $ifu->AgregarCampoArchivo('archivo', 'Archivo|left', false, '', 100, 100, '', true);
 
+                // Consultar si la empresa usa validación UAFE (se reutiliza más adelante)
+                $sqlUafeEmp = "
+                    SELECT emmpr_uafe_cprov
+                    FROM saeempr
+                    WHERE empr_cod_empr = $idempresa;
+                ";
+
+                $valorUafeRaw = consulta_string($sqlUafeEmp, 'emmpr_uafe_cprov', $oCon, 'f');
+                $usaUAFE = valorLogicoActivado($valorUafeRaw);
+
                 // Tipo de documento
                 $ifu->AgregarCampoLista('tipo_adj', 'Tipo Documento|left', false, 150, 150, true);
                 $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO GENERAL', 0);
-                $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+
+                if ($usaUAFE) {
+                    $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                }
 
                 // Documento UAFE se llena dinámicamente
                 $ifu->AgregarCampoLista('id_archivo_uafe', 'Documento UAFE|left', false, 200, 200, true);
@@ -1096,17 +1109,6 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 $tableAdjuntos .= '</tr>';
 
 
-                $tableAdjuntos .= '<tr>';
-                $tableAdjuntos .= '
-                    <td colspan="6" style="padding-top: 10px; padding-bottom: 10px;">
-                        <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
-                            Notificar Documentación UAFE Requerida
-                            <span class="glyphicon glyphicon-envelope"></span>
-                        </button>
-                    </td>
-                ';
-                $tableAdjuntos .= '</tr>';
-
                 $tableAdjuntos .= '</table>';
                 //------------------------------------------------------------------
                 //FIN ADJUNTOS APARTADO DE SUBIR ADJUNTOS VISUAL
@@ -1122,15 +1124,7 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
         //  INICIO VALIDACIÓN UAFE PARA HABILITAR/DESHABILITAR ESTADO
         //------------------------------------------------------------------------------
 
-        // Consultar si la empresa usa validación UAFE
-        $sqlUafeEmp = "
-            SELECT emmpr_uafe_cprov
-            FROM saeempr
-            WHERE empr_cod_empr = $idempresa;
-        ";
-
-        $valorUafeRaw = consulta_string($sqlUafeEmp, 'emmpr_uafe_cprov', $oCon, 'f');
-        $usaUAFE = valorLogicoActivado($valorUafeRaw);
+        // El valor de $usaUAFE ya fue consultado al construir los controles
         $oReturn->script("
             console.log('%cline 1: VALOR RAW DE usaUAFE = ' + JSON.stringify('$valorUafeRaw'), 'color:yellow;font-weight:bold');
             console.log('%cline 1b: usaUAFE normalizado = ' + JSON.stringify('$usaUAFE'), 'color:yellow;font-weight:bold');
@@ -1218,19 +1212,32 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                         <td>' . $ifu->ObjetoHtmlLBL('nombre_comercial') . '</td>
                         <td colspan="3">' . $ifu->ObjetoHtml('nombre_comercial') . '</td>
                 </tr>';
-        $sHtml .= '<tr> 
+        $sHtml .= '<tr>
                         <td>' . $ifu->ObjetoHtmlLBL('grupo') . '</td>
                         <td>' . $ifu->ObjetoHtml('grupo') . '</td>
-						<td>* Estado</td>
-						<td colspan="1">
+                                                <td>* Estado</td>
+                                                <td colspan="1">
 
                         <label>Activo</label><input type="radio" name="estado" id="AC" value="A" />
                                                 <label>Suspendido</label><input type="radio" name="estado" id="SU" value="S" />
                                                 <label>Pendiente</label><input type="radio" name="estado" id="PE" value="P"  />
 
 
-					</td>
+                                        </td>
                 </tr>';
+
+        if ($usaUAFE) {
+            $sHtml .= '<tr>
+                            <td></td>
+                            <td></td>
+                            <td colspan="2" style="text-align: right;">
+                                <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
+                                    Notificar Documentación UAFE Requerida
+                                    <span class="glyphicon glyphicon-envelope"></span>
+                                </button>
+                            </td>
+                    </tr>';
+        }
         $sHtml .= '<tr>
                         <td>' . $ifu->ObjetoHtmlLBL('clpv_cod_sucu') . '</td>
                         <td>' . $ifu->ObjetoHtml('clpv_cod_sucu') . '</td>
