@@ -2305,23 +2305,10 @@ function seleccionaItem($aForm = '', $cliente = 0)
 
 
 
-        if (!empty($clpv_est_clpv)) {
+        $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $cliente);
 
-            if ($clpv_est_clpv == 'A') {
-                $clpv_est_clpv = 'AC';
-            }
-            if ($clpv_est_clpv == 'S') {
-                $clpv_est_clpv = 'SU';
-            }
-
-            if ($clpv_est_clpv == 'P') {
-                $clpv_est_clpv = 'PE';
-            }
-
-            $oReturn->script('editar(\'' . $clpv_est_clpv . '\')');
-        } else {
-            $clpv_est_clpv = 'PE';
-            $oReturn->script('editar(\'' . $clpv_est_clpv . '\')');
+        if ($estadoVisual !== '') {
+            $oReturn->script('editar(\'' . $estadoVisual . '\')');
         }
 
 
