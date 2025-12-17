@@ -1331,31 +1331,31 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
           <td><i class="" aria-hidden="true"> Nombre Contacto</i></td>
           <td><input class="form-control" type="text" id="nombre_contacto_" name="nombre_contacto_" /></td>
 
-            </tr>
-            
-            
-            <tr>
-                <td><i class="" aria-hidden="true"> Telefono Contacto</i></td>
-                <td><input class="form-control" type="text" id="tlf_contacto_" name="tlf_contacto_" /></td>
+        </tr>';
 
-                <td><i class="" aria-hidden="true"> Correo Contacto</i></td>
+        $sHtml .= '<tr>
+            <td><i class="" aria-hidden="true"> Telefono Contacto</i></td>
+            <td><input class="form-control" type="text" id="tlf_contacto_" name="tlf_contacto_" /></td>
 
-                <td>
-                    <div class="input-group input-group-sm" style="width: 100%;">
-                        <input class="form-control" type="text" id="correo_contacto_" name="correo_contacto_" />
-                        " . ($usaUAFE ? "<span class=\"input-group-addon\" style=\"background: transparent; border: none; padding-left: 6px; padding-right: 6px;\">
-                                <a href=\"#\" onclick=\"enviar_mail(); return false;\" class=\"text-muted\" title=\"Solicitar documentación UAFE\" style=\"font-size: 12px; text-decoration: underline;\">
-                                    <span class=\"glyphicon glyphicon-envelope\" aria-hidden=\"true\"></span> Notificar UAFE
-                                </a>
-                            </span>" : "") . "
-                    </div>
+            <td><i class="" aria-hidden="true"> Correo Contacto</i></td>
+
+            <td>
+                <div class="input-group input-group-sm" style="width: 100%;">';
+        $sHtml .= '<input class="form-control" type="text" id="correo_contacto_" name="correo_contacto_" />';
+
+        if ($usaUAFE) {
+            $sHtml .= '<span class="input-group-addon" style="background: transparent; border: none; padding-left: 6px; padding-right: 6px;">'
+                . '<a href="javascript:void(0);" onclick="enviar_mail(); return false;" class="text-muted" title="Solicitar documentación UAFE" style="font-size: 12px; text-decoration: underline;">'
+                . '<span class="glyphicon glyphicon-envelope" aria-hidden="true"></span> Notificar UAFE'
+                . '</a>'
+                . '</span>';
+        }
+
+        $sHtml .= '            </div>
                 </td>
 
 
             </tr>';
-            
-
-
         $sHtml .= '</table>';
 
         $sHtml .= '<table class="table table-striped table-condensed" align="center" style="width: 100%;">';
