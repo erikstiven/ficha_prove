@@ -1334,28 +1334,29 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
         </tr>';
 
         $sHtml .= '<tr>
-            <td><i class="" aria-hidden="true"> Telefono Contacto</i></td>
-            <td><input class="form-control" type="text" id="tlf_contacto_" name="tlf_contacto_" /></td>
+              <td><i class="" aria-hidden="true"> Telefono Contacto</i></td>
+              <td><input class="form-control" type="text" id="tlf_contacto_" name="tlf_contacto_" /></td>
 
-            <td><i class="" aria-hidden="true"> Correo Contacto</i></td>
+              <td><i class="" aria-hidden="true"> Correo Contacto</i></td>
 
-            <td>
-                <div class="input-group input-group-sm" style="width: 100%;">';
+              <td>
+                  <div class="input-group input-group-sm" style="width: 100%;">';
         $sHtml .= '<input class="form-control" type="text" id="correo_contacto_" name="correo_contacto_" />';
 
+        $sHtml .= '            </div>';
+
         if ($usaUAFE) {
-            $sHtml .= '<span class="input-group-addon" style="background: transparent; border: none; padding-left: 6px; padding-right: 6px;">'
-                . '<a href="javascript:void(0);" onclick="enviar_mail(); return false;" class="text-muted" title="Solicitar documentación UAFE" style="font-size: 12px; text-decoration: underline;">'
-                . '<span class="glyphicon glyphicon-envelope" aria-hidden="true"></span> Notificar UAFE'
-                . '</a>'
-                . '</span>';
+            $sHtml .= '<div style="margin-top: 6px;">'
+                . '<button type="button" class="btn btn-info btn-xs" onclick="enviar_mail(); return false;" title="Solicitar documentación UAFE">'
+                . '<span class="glyphicon glyphicon-envelope" aria-hidden="true"></span> UAFE'
+                . '</button>'
+                . '</div>';
         }
 
-        $sHtml .= '            </div>
-                </td>
+        $sHtml .= '                  </td>
 
 
-            </tr>';
+              </tr>';
         $sHtml .= '</table>';
 
         $sHtml .= '<table class="table table-striped table-condensed" align="center" style="width: 100%;">';
