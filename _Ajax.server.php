@@ -7220,6 +7220,111 @@ function valorLogicoActivado($valor)
     return in_array($normalizado, ['t', 'true', '1', 's', 'si', 'y'], true);
 }
 
+function actualizarEstadosAdjuntosUafe($oCon)
+{
+    $resumen = array(
+        'procesados' => 0,
+        'marcados_ven' => 0,
+        'marcados_ac' => 0,
+    );
+
+    if (!$oCon) {
+        return $resumen;
+    }
+
+    $mapaVencimientos = array();
+
+    $sqlVencimientos = "
+        SELECT c.clpv_cod_empr AS empresa, c.clpv_cod_clpv AS proveedor, p.tprov_venc_uafe
+        FROM saeclpv c
+        JOIN saetprov p
+            ON p.tprov_cod_empr = c.clpv_cod_empr
+           AND p.tprov_cod_tprov = c.clpv_cod_tprov
+        WHERE COALESCE(p.tprov_venc_uafe, '') <> ''
+    ";
+
+    if ($oCon->Query($sqlVencimientos) && $oCon->NumFilas() > 0) {
+        do {
+            $empresa  = intval($oCon->f('empresa'));
+            $proveedor = intval($oCon->f('proveedor'));
+            $fechaVenc = substr(trim($oCon->f('tprov_venc_uafe')), 0, 10);
+
+            if ($empresa > 0 && $proveedor > 0 && $fechaVenc !== '') {
+                $mapaVencimientos[$empresa][$proveedor] = $fechaVenc;
+            }
+        } while ($oCon->SiguienteRegistro());
+    }
+
+    if (empty($mapaVencimientos)) {
+        return $resumen;
+    }
+
+    $sqlAdjuntos = "
+        SELECT id, id_empresa, id_clpv, estado, fecha_entrega
+        FROM comercial.adjuntos_clpv
+        WHERE id_archivo_uafe IS NOT NULL
+    ";
+
+    if (!$oCon->Query($sqlAdjuntos) || $oCon->NumFilas() <= 0) {
+        return $resumen;
+    }
+
+    $oCon->QueryT("BEGIN;");
+
+    try {
+        do {
+            $idAdj      = intval($oCon->f('id'));
+            $empresa    = intval($oCon->f('id_empresa'));
+            $proveedor  = intval($oCon->f('id_clpv'));
+            $estadoOrig = strtoupper(trim($oCon->f('estado')));
+            $fechaEnt   = substr(trim($oCon->f('fecha_entrega')), 0, 10);
+
+            if ($idAdj <= 0 || $empresa <= 0 || $proveedor <= 0) {
+                continue;
+            }
+
+            if (!isset($mapaVencimientos[$empresa][$proveedor])) {
+                continue;
+            }
+
+            $fechaVenc = $mapaVencimientos[$empresa][$proveedor];
+
+            if ($fechaEnt === '' || $fechaVenc === '') {
+                continue;
+            }
+
+            $estadoNuevo = ($fechaEnt < $fechaVenc) ? 'VEN' : 'AC';
+
+            if ($estadoNuevo === $estadoOrig) {
+                $resumen['procesados']++;
+                continue;
+            }
+
+            $sqlUpd = "
+                UPDATE comercial.adjuntos_clpv
+                SET estado = '$estadoNuevo'
+                WHERE id = $idAdj
+            ";
+
+            $oCon->QueryT($sqlUpd);
+
+            $resumen['procesados']++;
+
+            if ($estadoNuevo === 'VEN') {
+                $resumen['marcados_ven']++;
+            } else {
+                $resumen['marcados_ac']++;
+            }
+        } while ($oCon->SiguienteRegistro());
+
+        $oCon->QueryT("COMMIT;");
+    } catch (Exception $e) {
+        $oCon->QueryT("ROLLBACK;");
+    }
+
+    return $resumen;
+}
+
 function usaValidacionUAFE($idempresa, $oCon)
 {
     $sqlUafe = "
@@ -7251,6 +7356,8 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     $oCon = new Dbo();
     $oCon->DSN = $DSN;
     $oCon->Conectar();
+
+    actualizarEstadosAdjuntosUafe($oCon);
 
     $oIfx = null;
     if (!empty($DSN_Ifx)) {
@@ -7591,6 +7698,8 @@ function recalcularEstadosUafeGlobal()
     $oCon = new Dbo();
     $oCon->DSN = $DSN;
     $oCon->Conectar();
+
+    actualizarEstadosAdjuntosUafe($oCon);
 
     $oIfx = new Dbo();
     $oIfx->DSN = $DSN_Ifx;

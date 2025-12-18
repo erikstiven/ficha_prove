@@ -1824,7 +1824,6 @@ if (isset($_REQUEST['codpedi'])) {
                 }
             });
 
-            forzarAperturaModalAlertasUafe();
             verificarAlertasUafe();
         });
     </script>
