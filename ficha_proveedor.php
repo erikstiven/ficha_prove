@@ -1791,6 +1791,18 @@ if (isset($_REQUEST['codpedi'])) {
             });
 
             verificarAlertasUafe();
+
+            // Forzar apertura del modal UAFE al cargar el módulo (modo prueba)
+            procesarResumenAlertasUafe({
+                mostrar: true,
+                vencidos: 1,
+                proximos: 0,
+                umbral: 30,
+                estimado_pendiente: 0,
+                estimado_activo: 0,
+                total_evaluables: 1,
+                ultima_ejecucion: ''
+            });
         });
     </script>
 
