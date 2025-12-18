@@ -1573,15 +1573,15 @@ if (isset($_REQUEST['codpedi'])) {
                                 </div>
                                 <div class="modal-body">
                                     <p class="lead" style="margin-bottom: 15px;">
-                                        Se detectaron proveedores con documentación UAFE vencida.<br>
-                                        Estos proveedores no deben operar hasta regularizar su documentación.
+                                        Se detectan documentos UAFE vencidos.<br>
+                                        Este proceso sincroniza el estado real de los proveedores.
                                     </p>
 
                                     <div class="row" id="uafeResumenNumerico">
                                         <div class="col-sm-6" style="margin-bottom: 10px;">
                                             <div class="well" style="padding: 12px; text-align: center;">
                                                 <div style="font-size: 28px; font-weight: bold;" id="uafeVencidosCount">0</div>
-                                                <div>Proveedores con documentos vencidos</div>
+                                                <div>Proveedores con documentos VC</div>
                                             </div>
                                         </div>
                                         <div class="col-sm-6" style="margin-bottom: 10px;">
@@ -1590,10 +1590,6 @@ if (isset($_REQUEST['codpedi'])) {
                                                 <div>Total proveedores UAFE evaluados</div>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div class="well" style="padding: 10px; margin-bottom: 10px; background-color: #f7f9fb;">
-                                        <strong>Última ejecución de recalculo:</strong> <span id="uafeUltimaEjecucion">No registrado</span>
                                     </div>
 
                                     <div class="alert alert-warning" role="alert" style="background-color: #fff9e6; color: #8a6d3b;">
@@ -1676,22 +1672,11 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function procesarResumenAlertasUafe(resumen) {
-            if (!resumen || resumen.mostrar === false) {
-                return;
-            }
+            var vencidos = (resumen && resumen.vencidos !== undefined) ? parseInt(resumen.vencidos, 10) : 0;
+            var totalEvaluables = (resumen && resumen.total_evaluables !== undefined) ? parseInt(resumen.total_evaluables, 10) : 0;
 
-            var vencidos = parseInt(resumen.vencidos, 10) || 0;
-            var totalEvaluables = parseInt(resumen.total_evaluables, 10) || 0;
-
-            if (vencidos <= 0) {
-                return;
-            }
-
-            $('#uafeVencidosCount').text(vencidos);
-            $('#uafeTotalEvaluables').text(totalEvaluables);
-
-            var ultima = (resumen.ultima_ejecucion && resumen.ultima_ejecucion !== '') ? resumen.ultima_ejecucion : 'No registrado';
-            $('#uafeUltimaEjecucion').text(ultima);
+            $('#uafeVencidosCount').text(isNaN(vencidos) ? 0 : vencidos);
+            $('#uafeTotalEvaluables').text(isNaN(totalEvaluables) ? 0 : totalEvaluables);
 
             limpiarDetalleRecalculoUafe();
             $('#btnRecalcularUafeGlobal').prop('disabled', false);
@@ -1703,9 +1688,8 @@ if (isset($_REQUEST['codpedi'])) {
         function forzarAperturaModalAlertasUafe() {
             limpiarDetalleRecalculoUafe();
 
-            $('#uafeVencidosCount').text('—');
-            $('#uafeTotalEvaluables').text('—');
-            $('#uafeUltimaEjecucion').text('No registrado');
+            $('#uafeVencidosCount').text('0');
+            $('#uafeTotalEvaluables').text('0');
 
             $('#btnRecalcularUafeGlobal').prop('disabled', false);
             $('#btnCerrarModalUafe').prop('disabled', false);
@@ -1796,10 +1780,6 @@ if (isset($_REQUEST['codpedi'])) {
                   .show()
                   .html(mensajeHtml + tablaHtml);
 
-              if (fechaHora !== '') {
-                  $('#uafeUltimaEjecucion').text(fechaHora);
-              }
-
               Swal.fire({
                   icon: 'info',
                   title: 'Recalculo finalizado',
@@ -1824,6 +1804,7 @@ if (isset($_REQUEST['codpedi'])) {
                 }
             });
 
+            forzarAperturaModalAlertasUafe();
             verificarAlertasUafe();
         });
     </script>

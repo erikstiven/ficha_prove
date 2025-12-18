@@ -7224,7 +7224,7 @@ function actualizarEstadosAdjuntosUafe($oCon)
 {
     $resumen = array(
         'procesados' => 0,
-        'marcados_ven' => 0,
+        'marcados_vc' => 0,
         'marcados_ac' => 0,
     );
 
@@ -7293,7 +7293,7 @@ function actualizarEstadosAdjuntosUafe($oCon)
                 continue;
             }
 
-            $estadoNuevo = ($fechaEnt < $fechaVenc) ? 'VEN' : 'AC';
+            $estadoNuevo = ($fechaEnt < $fechaVenc) ? 'VC' : 'AC';
 
             if ($estadoNuevo === $estadoOrig) {
                 $resumen['procesados']++;
@@ -7310,8 +7310,8 @@ function actualizarEstadosAdjuntosUafe($oCon)
 
             $resumen['procesados']++;
 
-            if ($estadoNuevo === 'VEN') {
-                $resumen['marcados_ven']++;
+            if ($estadoNuevo === 'VC') {
+                $resumen['marcados_vc']++;
             } else {
                 $resumen['marcados_ac']++;
             }
@@ -7348,11 +7348,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
 
     $oReturn = new xajaxResponse();
 
-    $hoy = date('Y-m-d');
-    if (isset($_SESSION[UAFE_MODAL_OMITIR_SESION_KEY]) && $_SESSION[UAFE_MODAL_OMITIR_SESION_KEY] === $hoy) {
-        return $oReturn;
-    }
-
     $oCon = new Dbo();
     $oCon->DSN = $DSN;
     $oCon->Conectar();
@@ -7378,7 +7373,7 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
         JOIN saeempr e
             ON e.empr_cod_empr = a.id_empresa
         WHERE COALESCE(LOWER(e.emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
-          AND a.estado = 'VEN'
+          AND a.estado = 'VC'
           AND a.id_archivo_uafe IS NOT NULL
     ";
 
@@ -7386,10 +7381,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
 
     if ($oCon->Query($sqlVencidos) && $oCon->NumFilas() > 0) {
         $vencidos = intval($oCon->f('vencidos'));
-    }
-
-    if ($vencidos <= 0) {
-        return $oReturn;
     }
 
     $totalEvaluables = 0;
@@ -7727,7 +7718,7 @@ function recalcularEstadosUafeGlobal()
         SELECT
             id_empresa,
             id_clpv,
-            MAX(CASE WHEN estado = 'VEN' THEN 1 ELSE 0 END) AS tiene_ven
+            MAX(CASE WHEN estado = 'VC' THEN 1 ELSE 0 END) AS tiene_vc
         FROM comercial.adjuntos_clpv
         WHERE id_archivo_uafe IS NOT NULL
         GROUP BY id_empresa, id_clpv
@@ -7737,7 +7728,7 @@ function recalcularEstadosUafeGlobal()
         do {
             $idEmpr = intval($oCon->f('id_empresa'));
             $idProv = intval($oCon->f('id_clpv'));
-            $tieneVen = intval($oCon->f('tiene_ven')) === 1;
+            $tieneVen = intval($oCon->f('tiene_vc')) === 1;
 
             if (!isset($mapaVencidos[$idEmpr])) {
                 $mapaVencidos[$idEmpr] = array();
