@@ -1660,8 +1660,12 @@ if (isset($_REQUEST['codpedi'])) {
         </div>
     </body>
 
-    <script>
-        var recalculoUafeEnProgreso = false;
+      <script>
+          var recalculoUafeEnProgreso = false;
+
+          function escaparHtmlUafe(texto) {
+              return $('<div>').text(texto || '').html();
+          }
 
         function limpiarDetalleRecalculoUafe() {
             $('#uafeRecalculoDetalle')
@@ -1739,37 +1743,72 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function mostrarResultadoRecalculoUafe(resumen) {
-            recalculoUafeEnProgreso = false;
+              recalculoUafeEnProgreso = false;
 
-            var evaluados = resumen && resumen.evaluados ? resumen.evaluados : 0;
-            var pendientes = resumen && resumen.cambiados_pendiente ? resumen.cambiados_pendiente : 0;
-            var activos = resumen && resumen.cambiados_activo ? resumen.cambiados_activo : 0;
-            var fechaHora = resumen && resumen.fecha_hora ? resumen.fecha_hora : '';
+              var evaluados = resumen && resumen.evaluados ? resumen.evaluados : 0;
+              var pendientes = resumen && resumen.cambiados_pendiente ? resumen.cambiados_pendiente : 0;
+              var activos = resumen && resumen.cambiados_activo ? resumen.cambiados_activo : 0;
+              var fechaHora = resumen && resumen.fecha_hora ? resumen.fecha_hora : '';
+              var detalle = (resumen && Array.isArray(resumen.detalle)) ? resumen.detalle : [];
+              var totalAfectados = resumen && resumen.total_afectados ? resumen.total_afectados : detalle.length;
 
-            var mensaje = 'Proveedores evaluados: ' + evaluados + '\n'
-                + 'Movidos a PENDIENTE: ' + pendientes + '\n'
-                + 'Movidos a ACTIVO: ' + activos;
+              var mensajeHtml = ''
+                  + '<strong>Proveedores evaluados:</strong> ' + evaluados + '<br>'
+                  + '<strong>Pasados a PENDIENTE:</strong> ' + pendientes + '<br>'
+                  + '<strong>Pasados a ACTIVO:</strong> ' + activos;
 
-            $('#btnRecalcularUafeGlobal').prop('disabled', false);
-            $('#btnCerrarModalUafe').prop('disabled', false);
+              if (fechaHora !== '') {
+                  mensajeHtml += '<br><strong>Fecha/hora:</strong> ' + escaparHtmlUafe(fechaHora);
+              }
 
-            $('#uafeRecalculoDetalle')
-                .removeClass('alert-info alert-danger')
-                .addClass('alert-success')
-                .show()
-                .html(mensaje.replace(/\n/g, '<br>'));
+              var tablaHtml = '';
 
-            if (fechaHora !== '') {
-                $('#uafeUltimaEjecucion').text(fechaHora);
-                mensaje += '\nFecha/hora: ' + fechaHora;
-            }
+              if (detalle.length > 0) {
+                  tablaHtml += '<div class="table-responsive" style="margin-top:10px;">';
+                  tablaHtml += '<table class="table table-condensed table-bordered">';
+                  tablaHtml += '<thead><tr><th>Proveedor</th><th>Estado anterior</th><th>Estado nuevo</th></tr></thead><tbody>';
 
-            Swal.fire({
-                icon: 'info',
-                title: 'Recalculo finalizado',
-                text: mensaje,
-                confirmButtonText: 'Aceptar'
-            });
+                  detalle.forEach(function(item) {
+                      var nombre = escaparHtmlUafe(item.nombre || item.id);
+                      var estadoAnterior = escaparHtmlUafe(item.estado_anterior || '');
+                      var estadoNuevo = escaparHtmlUafe(item.estado_nuevo || '');
+
+                      tablaHtml += '<tr>'
+                          + '<td>' + nombre + '</td>'
+                          + '<td>' + estadoAnterior + '</td>'
+                          + '<td>' + estadoNuevo + '</td>'
+                          + '</tr>';
+                  });
+
+                  tablaHtml += '</tbody></table></div>';
+
+                  if (totalAfectados > detalle.length) {
+                      tablaHtml += '<div style="margin-top:5px; font-size: 12px;">Se afectaron ' + totalAfectados + ' proveedores en total.</div>';
+                  }
+              }
+
+              $('#btnRecalcularUafeGlobal').prop('disabled', false);
+              $('#btnCerrarModalUafe').prop('disabled', false);
+
+              $('#uafeRecalculoDetalle')
+                  .removeClass('alert-info alert-danger')
+                  .addClass('alert-success')
+                  .show()
+                  .html(mensajeHtml + tablaHtml);
+
+              if (fechaHora !== '') {
+                  $('#uafeUltimaEjecucion').text(fechaHora);
+              }
+
+              Swal.fire({
+                  icon: 'info',
+                  title: 'Recalculo finalizado',
+                  text: 'Proveedores evaluados: ' + evaluados + '\n'
+                      + 'Pasados a PENDIENTE: ' + pendientes + '\n'
+                      + 'Pasados a ACTIVO: ' + activos
+                      + (fechaHora !== '' ? '\nFecha/hora: ' + fechaHora : ''),
+                  confirmButtonText: 'Aceptar'
+              });
 
             $('#modalAlertasUafe').modal('show');
         }

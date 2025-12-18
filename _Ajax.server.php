@@ -7603,6 +7603,8 @@ function recalcularEstadosUafeGlobal()
         'cambiados_pendiente' => 0,
         'cambiados_activo' => 0,
         'fecha_hora' => '',
+        'detalle' => array(),
+        'total_afectados' => 0,
     );
 
     if (empty($empresas)) {
@@ -7610,9 +7612,35 @@ function recalcularEstadosUafeGlobal()
         return $oReturn;
     }
 
+    $mapaVencidos = array();
+
+    $sqlAdjuntos = "
+        SELECT
+            id_empresa,
+            id_clpv,
+            MAX(CASE WHEN estado = 'VEN' THEN 1 ELSE 0 END) AS tiene_ven
+        FROM comercial.adjuntos_clpv
+        WHERE id_archivo_uafe IS NOT NULL
+        GROUP BY id_empresa, id_clpv
+    ";
+
+    if ($oCon->Query($sqlAdjuntos) && $oCon->NumFilas() > 0) {
+        do {
+            $idEmpr = intval($oCon->f('id_empresa'));
+            $idProv = intval($oCon->f('id_clpv'));
+            $tieneVen = intval($oCon->f('tiene_ven')) === 1;
+
+            if (!isset($mapaVencidos[$idEmpr])) {
+                $mapaVencidos[$idEmpr] = array();
+            }
+
+            $mapaVencidos[$idEmpr][$idProv] = $tieneVen;
+        } while ($oCon->SiguienteRegistro());
+    }
+
     foreach ($empresas as $empresa) {
         $sqlProv = "
-            SELECT clpv_cod_clpv, clpv_est_clpv
+            SELECT clpv_cod_clpv, clpv_nom_clpv, clpv_est_clpv
             FROM saeclpv
             WHERE clpv_cod_empr = $empresa
               AND clpv_est_clpv IN ('A','P')
@@ -7626,6 +7654,7 @@ function recalcularEstadosUafeGlobal()
         do {
             $idProveedor = intval($oIfx->f('clpv_cod_clpv'));
             $estadoActual = strtoupper(trim($oIfx->f('clpv_est_clpv')));
+            $nombreProveedor = trim($oIfx->f('clpv_nom_clpv'));
 
             if ($idProveedor <= 0) {
                 continue;
@@ -7633,22 +7662,7 @@ function recalcularEstadosUafeGlobal()
 
             $resumen['evaluados']++;
 
-            $sqlTieneVencido = "
-                SELECT 1
-                FROM comercial.adjuntos_clpv
-                WHERE id_empresa = $empresa
-                  AND id_clpv = $idProveedor
-                  AND id_archivo_uafe IS NOT NULL
-                  AND estado = 'VEN'
-                LIMIT 1;
-            ";
-
-            $destinoPendiente = false;
-
-            if ($oCon->Query($sqlTieneVencido) && $oCon->NumFilas() > 0) {
-                $destinoPendiente = true;
-            }
-
+            $destinoPendiente = isset($mapaVencidos[$empresa][$idProveedor]) && $mapaVencidos[$empresa][$idProveedor] === true;
             $estadoDestino = $destinoPendiente ? 'P' : 'A';
 
             if ($estadoActual !== $estadoDestino && in_array($estadoActual, array('A', 'P'))) {
@@ -7659,6 +7673,17 @@ function recalcularEstadosUafeGlobal()
                 } else {
                     $resumen['cambiados_activo']++;
                 }
+
+                if (count($resumen['detalle']) < 20) {
+                    $resumen['detalle'][] = array(
+                        'id' => $idProveedor,
+                        'nombre' => $nombreProveedor,
+                        'estado_anterior' => $estadoActual,
+                        'estado_nuevo' => $estadoDestino,
+                    );
+                }
+
+                $resumen['total_afectados']++;
             }
         } while ($oIfx->SiguienteRegistro());
 
