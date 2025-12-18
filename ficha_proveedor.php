@@ -1581,7 +1581,7 @@ if (isset($_REQUEST['codpedi'])) {
                                         <div class="col-sm-6" style="margin-bottom: 10px;">
                                             <div class="well" style="padding: 12px; text-align: center;">
                                                 <div style="font-size: 28px; font-weight: bold;" id="uafeVencidosCount">0</div>
-                                                <div>Proveedores con documentos VC</div>
+                                                <div>Proveedores con documentos vencidos</div>
                                             </div>
                                         </div>
                                         <div class="col-sm-6" style="margin-bottom: 10px;">

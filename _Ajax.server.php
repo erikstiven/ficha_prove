@@ -7352,8 +7352,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     $oCon->DSN = $DSN;
     $oCon->Conectar();
 
-    actualizarEstadosAdjuntosUafe($oCon);
-
     $oIfx = null;
     if (!empty($DSN_Ifx)) {
         $oIfx = new Dbo();
@@ -7362,25 +7360,16 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     }
 
     $empresas = obtenerEmpresasConUafeActivas($oCon);
-
-    $sqlVencidos = "
-        SELECT COUNT(DISTINCT a.id_clpv) AS vencidos
-        FROM comercial.adjuntos_clpv a
-        JOIN comercial.archivos_uafe u
-            ON u.id = a.id_archivo_uafe
-            AND u.empr_cod_empr = a.id_empresa
-            AND u.estado = 'AC'
-        JOIN saeempr e
-            ON e.empr_cod_empr = a.id_empresa
-        WHERE COALESCE(LOWER(e.emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
-          AND a.estado = 'VC'
-          AND a.id_archivo_uafe IS NOT NULL
-    ";
+    $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
 
     $vencidos = 0;
 
-    if ($oCon->Query($sqlVencidos) && $oCon->NumFilas() > 0) {
-        $vencidos = intval($oCon->f('vencidos'));
+    foreach ($mapaVencidos as $empresa => $proveedores) {
+        foreach ($proveedores as $estadoVencido) {
+            if ($estadoVencido === true) {
+                $vencidos++;
+            }
+        }
     }
 
     $totalEvaluables = 0;
@@ -7414,22 +7403,40 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     return $oReturn;
 }
 
-function calcularEstadoDocumentoUafe($estadoBd, $fechaVencimiento)
+function calcularEstadoVirtualAdjuntoUafe($estadoBd, $fechaEntrega, $fechaVencimientoUafe)
 {
     $estadoBase = $estadoBd ?: 'PE';
 
     if ($estadoBase !== 'AC') {
-        return 'PE';
+        return array(
+            'estado_visual' => 'PE',
+            'vencido'       => false,
+        );
     }
 
-    if (empty($fechaVencimiento)) {
-        return 'PE';
+    $fechaEntrega     = ($fechaEntrega) ? substr($fechaEntrega, 0, 10) : '';
+    $fechaVencimiento = ($fechaVencimientoUafe) ? substr($fechaVencimientoUafe, 0, 10) : '';
+
+    if ($fechaEntrega === '' || $fechaVencimiento === '') {
+        return array(
+            'estado_visual' => 'AC',
+            'vencido'       => false,
+        );
     }
 
-    $hoy = date('Y-m-d');
-    $fechaVencimiento = substr($fechaVencimiento, 0, 10);
+    $vencido = ($fechaEntrega < $fechaVencimiento);
 
-    return ($hoy > $fechaVencimiento) ? 'VE' : 'AC';
+    return array(
+        'estado_visual' => $vencido ? 'VE' : 'AC',
+        'vencido'       => $vencido,
+    );
+}
+
+function calcularEstadoDocumentoUafe($estadoBd, $fechaVencimiento)
+{
+    $resultado = calcularEstadoVirtualAdjuntoUafe($estadoBd, $fechaVencimiento, $fechaVencimiento);
+
+    return $resultado['estado_visual'];
 }
 
 function obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon)
@@ -7465,13 +7472,13 @@ function proveedorCumpleUafe($idempresa, $id_clpv, $oCon)
         SELECT
             u.id,
             COALESCE(a.estado, 'PE') AS estado_adj,
-            a.fecha_vencimiento_uafe
+            a.fecha_entrega
         FROM comercial.archivos_uafe u
         LEFT JOIN comercial.adjuntos_clpv a
             ON a.id_archivo_uafe = u.id
             AND a.id_clpv = $id_clpv
             AND a.id_empresa = $idempresa
-            AND a.estado <> 'AN'
+            AND COALESCE(a.estado, 'PE') <> 'AN'
         WHERE u.empr_cod_empr = $idempresa
           AND u.estado = 'AC'
     ";
@@ -7483,9 +7490,9 @@ function proveedorCumpleUafe($idempresa, $id_clpv, $oCon)
     $todosActivos = true;
 
     do {
-        $estadoCalculado = calcularEstadoDocumentoUafe($oCon->f('estado_adj'), $oCon->f('fecha_vencimiento_uafe'));
+        $resultado = calcularEstadoVirtualAdjuntoUafe($oCon->f('estado_adj'), $oCon->f('fecha_entrega'), $fechaVencimiento);
 
-        if ($estadoCalculado !== 'AC') {
+        if ($resultado['estado_visual'] !== 'AC') {
             $todosActivos = false;
             break;
         }
@@ -7658,6 +7665,66 @@ function obtenerEstadoProveedorInformix($idempresa, $id_clpv)
     return '';
 }
 
+function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
+{
+    $mapa = array();
+
+    if (empty($empresas)) {
+        return $mapa;
+    }
+
+    $lista = implode(',', array_map('intval', $empresas));
+
+    $sql = "
+        SELECT
+            a.id_empresa,
+            a.id_clpv,
+            COALESCE(a.estado, 'PE') AS estado_adj,
+            a.fecha_entrega,
+            t.tprov_venc_uafe
+        FROM comercial.adjuntos_clpv a
+        JOIN comercial.archivos_uafe u
+            ON u.id = a.id_archivo_uafe
+            AND u.empr_cod_empr = a.id_empresa
+            AND u.estado = 'AC'
+        JOIN saeclpv c
+            ON c.clpv_cod_clpv = a.id_clpv
+            AND c.clpv_cod_empr = a.id_empresa
+        LEFT JOIN saetprov t
+            ON t.tprov_cod_empr = a.id_empresa
+            AND t.tprov_cod_tprov = c.clpv_cod_tprov
+        WHERE a.id_empresa IN ($lista)
+          AND a.id_archivo_uafe IS NOT NULL
+          AND COALESCE(a.estado, 'PE') <> 'AN'
+    ";
+
+    if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+        do {
+            $idEmpr   = intval($oCon->f('id_empresa'));
+            $idProv   = intval($oCon->f('id_clpv'));
+            $estado   = $oCon->f('estado_adj');
+            $entrega  = $oCon->f('fecha_entrega');
+            $vencUafe = $oCon->f('tprov_venc_uafe');
+
+            $resultado = calcularEstadoVirtualAdjuntoUafe($estado, $entrega, $vencUafe);
+
+            if (!isset($mapa[$idEmpr])) {
+                $mapa[$idEmpr] = array();
+            }
+
+            if (!isset($mapa[$idEmpr][$idProv])) {
+                $mapa[$idEmpr][$idProv] = false;
+            }
+
+            if ($resultado['vencido']) {
+                $mapa[$idEmpr][$idProv] = true;
+            }
+        } while ($oCon->SiguienteRegistro());
+    }
+
+    return $mapa;
+}
+
 function debeBloquearEstadoPorUafe($idempresa, $id_clpv, $oCon)
 {
     if (!usaValidacionUAFE($idempresa, $oCon)) {
@@ -7690,8 +7757,6 @@ function recalcularEstadosUafeGlobal()
     $oCon->DSN = $DSN;
     $oCon->Conectar();
 
-    actualizarEstadosAdjuntosUafe($oCon);
-
     $oIfx = new Dbo();
     $oIfx->DSN = $DSN_Ifx;
     $oIfx->Conectar();
@@ -7712,31 +7777,7 @@ function recalcularEstadosUafeGlobal()
         return $oReturn;
     }
 
-    $mapaVencidos = array();
-
-    $sqlAdjuntos = "
-        SELECT
-            id_empresa,
-            id_clpv,
-            MAX(CASE WHEN estado = 'VC' THEN 1 ELSE 0 END) AS tiene_vc
-        FROM comercial.adjuntos_clpv
-        WHERE id_archivo_uafe IS NOT NULL
-        GROUP BY id_empresa, id_clpv
-    ";
-
-    if ($oCon->Query($sqlAdjuntos) && $oCon->NumFilas() > 0) {
-        do {
-            $idEmpr = intval($oCon->f('id_empresa'));
-            $idProv = intval($oCon->f('id_clpv'));
-            $tieneVen = intval($oCon->f('tiene_vc')) === 1;
-
-            if (!isset($mapaVencidos[$idEmpr])) {
-                $mapaVencidos[$idEmpr] = array();
-            }
-
-            $mapaVencidos[$idEmpr][$idProv] = $tieneVen;
-        } while ($oCon->SiguienteRegistro());
-    }
+    $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
 
     foreach ($empresas as $empresa) {
         $sqlProv = "
@@ -8359,8 +8400,10 @@ function consultarAdjuntosUafe($aForm = '')
     // -----------------------------------------------------------------------
     // INICIO TABLA DE DOCUMENTOS UAFE
     // -----------------------------------------------------------------------
+    $fechaVencimientoUafe = obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon);
+
     $sql = "
-        SELECT 
+        SELECT
             u.id AS id_uafe,
             u.titulo,
             a.id AS id_adj,
@@ -8421,7 +8464,7 @@ function consultarAdjuntosUafe($aForm = '')
             $estado   = $oCon->f('estado_adj');
             $rutaAdj  = trim($oCon->f('ruta_adj'));
             $fecEnt   = $oCon->f('fecha_entrega');
-            $fecVenc  = $oCon->f('fecha_vencimiento_uafe');
+            $fecVenc  = $fechaVencimientoUafe;
 
             if (isset($_SESSION['uafeCambios'][$id_clpv][$id_uafe])) {
                 $estado = $_SESSION['uafeCambios'][$id_clpv][$id_uafe];
@@ -8434,7 +8477,8 @@ function consultarAdjuntosUafe($aForm = '')
                 $fecEnt = "---";
             }
 
-            $estadoCalculado = calcularEstadoDocumentoUafe($estado, $fecVenc);
+            $estadoCalculado = calcularEstadoVirtualAdjuntoUafe($estado, $oCon->f('fecha_entrega'), $fechaVencimientoUafe);
+            $estadoCalculado = is_array($estadoCalculado) ? $estadoCalculado['estado_visual'] : $estadoCalculado;
 
             $estadoMostrar = $estadoCalculado;
 
