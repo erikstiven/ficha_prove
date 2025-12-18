@@ -1696,6 +1696,19 @@ if (isset($_REQUEST['codpedi'])) {
             $('#modalAlertasUafe').modal('show');
         }
 
+        function forzarAperturaModalAlertasUafe() {
+            limpiarDetalleRecalculoUafe();
+
+            $('#uafeVencidosCount').text('—');
+            $('#uafeTotalEvaluables').text('—');
+            $('#uafeUltimaEjecucion').text('No registrado');
+
+            $('#btnRecalcularUafeGlobal').prop('disabled', false);
+            $('#btnCerrarModalUafe').prop('disabled', false);
+
+            $('#modalAlertasUafe').modal('show');
+        }
+
         function ejecutarRecalculoUafeGlobal() {
             if (recalculoUafeEnProgreso) {
                 return;
@@ -1772,6 +1785,7 @@ if (isset($_REQUEST['codpedi'])) {
                 }
             });
 
+            forzarAperturaModalAlertasUafe();
             verificarAlertasUafe();
         });
     </script>
