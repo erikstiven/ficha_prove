@@ -7220,60 +7220,6 @@ function valorLogicoActivado($valor)
     return in_array($normalizado, ['t', 'true', '1', 's', 'si', 'y'], true);
 }
 
-function obtenerResumenEstimadoUafe($empresas, $oCon, $oIfx)
-{
-    $resumen = array(
-        'evaluados' => 0,
-        'estimado_pendiente' => 0,
-        'estimado_activo' => 0,
-    );
-
-    if (empty($empresas) || !$oIfx) {
-        return $resumen;
-    }
-
-    foreach ($empresas as $empresa) {
-        $sqlProv = "
-            SELECT clpv_cod_clpv, clpv_est_clpv
-            FROM saeclpv
-            WHERE clpv_cod_empr = $empresa
-              AND clpv_est_clpv IN ('A','P')
-        ";
-
-        if (!$oIfx->Query($sqlProv) || $oIfx->NumFilas() <= 0) {
-            $oIfx->Free();
-            continue;
-        }
-
-        do {
-            $idProveedor = intval($oIfx->f('clpv_cod_clpv'));
-            $estadoActual = strtoupper(trim($oIfx->f('clpv_est_clpv')));
-
-            if ($idProveedor <= 0) {
-                continue;
-            }
-
-            $resumen['evaluados']++;
-
-            $cumple = proveedorCumpleUafe($empresa, $idProveedor, $oCon);
-            $destinoPendiente = !$cumple;
-            $estadoDestino = $destinoPendiente ? 'P' : 'A';
-
-            if ($estadoActual !== $estadoDestino) {
-                if ($destinoPendiente) {
-                    $resumen['estimado_pendiente']++;
-                } else {
-                    $resumen['estimado_activo']++;
-                }
-            }
-        } while ($oIfx->SiguienteRegistro());
-
-        $oIfx->Free();
-    }
-
-    return $resumen;
-}
-
 function usaValidacionUAFE($idempresa, $oCon)
 {
     $sqlUafe = "
@@ -7302,11 +7248,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
         return $oReturn;
     }
 
-    $diasAviso = intval($diasAviso);
-    if ($diasAviso <= 0) {
-        $diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO;
-    }
-
     $oCon = new Dbo();
     $oCon->DSN = $DSN;
     $oCon->Conectar();
@@ -7320,10 +7261,8 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
 
     $empresas = obtenerEmpresasConUafeActivas($oCon);
 
-    $sql = "
-        SELECT
-            COUNT(DISTINCT CASE WHEN a.fecha_vencimiento_uafe::date < CURRENT_DATE THEN a.id_clpv END) AS vencidos,
-            COUNT(DISTINCT CASE WHEN a.fecha_vencimiento_uafe::date >= CURRENT_DATE AND a.fecha_vencimiento_uafe::date <= CURRENT_DATE + INTERVAL '$diasAviso days' THEN a.id_clpv END) AS proximos
+    $sqlVencidos = "
+        SELECT COUNT(DISTINCT a.id_clpv) AS vencidos
         FROM comercial.adjuntos_clpv a
         JOIN comercial.archivos_uafe u
             ON u.id = a.id_archivo_uafe
@@ -7332,55 +7271,42 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
         JOIN saeempr e
             ON e.empr_cod_empr = a.id_empresa
         WHERE COALESCE(LOWER(e.emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
-          AND a.estado <> 'AN'
+          AND a.estado = 'VEN'
           AND a.id_archivo_uafe IS NOT NULL
-          AND a.fecha_vencimiento_uafe IS NOT NULL
     ";
 
     $vencidos = 0;
-    $proximos = 0;
 
-    if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+    if ($oCon->Query($sqlVencidos) && $oCon->NumFilas() > 0) {
         $vencidos = intval($oCon->f('vencidos'));
-        $proximos = intval($oCon->f('proximos'));
     }
 
-    if (($vencidos + $proximos) <= 0) {
+    if ($vencidos <= 0) {
         return $oReturn;
     }
 
     $totalEvaluables = 0;
-    $estimadoPendiente = 0;
-    $estimadoActivo = 0;
 
     if ($oIfx) {
-        $resumenEstimado = obtenerResumenEstimadoUafe($empresas, $oCon, $oIfx);
-        $totalEvaluables = $resumenEstimado['evaluados'];
-        $estimadoPendiente = $resumenEstimado['estimado_pendiente'];
-        $estimadoActivo = $resumenEstimado['estimado_activo'];
-    } else {
-        $sqlTotal = "
-            SELECT COUNT(DISTINCT a.id_clpv) AS total
-            FROM comercial.adjuntos_clpv a
-            JOIN saeempr e
-                ON e.empr_cod_empr = a.id_empresa
-            WHERE COALESCE(LOWER(e.emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
-              AND a.id_archivo_uafe IS NOT NULL
-              AND a.estado <> 'AN'
-        ";
+        foreach ($empresas as $empresa) {
+            $sqlProv = "
+                SELECT COUNT(*) AS total
+                FROM saeclpv
+                WHERE clpv_cod_empr = $empresa
+                  AND clpv_est_clpv IN ('A','P')
+            ";
 
-        if ($oCon->Query($sqlTotal) && $oCon->NumFilas() > 0) {
-            $totalEvaluables = intval($oCon->f('total'));
+            if ($oIfx->Query($sqlProv) && $oIfx->NumFilas() > 0) {
+                $totalEvaluables += intval($oIfx->f('total'));
+            }
+
+            $oIfx->Free();
         }
     }
 
     $payload = array(
         'mostrar'             => true,
         'vencidos'            => $vencidos,
-        'proximos'            => $proximos,
-        'umbral'              => $diasAviso,
-        'estimado_pendiente'  => $estimadoPendiente,
-        'estimado_activo'     => $estimadoActivo,
         'total_evaluables'    => $totalEvaluables,
         'ultima_ejecucion'    => isset($_SESSION['uafe_ultima_ejecucion']) ? $_SESSION['uafe_ultima_ejecucion'] : '',
     );
@@ -7707,10 +7633,22 @@ function recalcularEstadosUafeGlobal()
 
             $resumen['evaluados']++;
 
-            marcarAdjuntosUafeVencidos($empresa, $idProveedor, $oCon);
-            $cumple = proveedorCumpleUafe($empresa, $idProveedor, $oCon);
+            $sqlTieneVencido = "
+                SELECT 1
+                FROM comercial.adjuntos_clpv
+                WHERE id_empresa = $empresa
+                  AND id_clpv = $idProveedor
+                  AND id_archivo_uafe IS NOT NULL
+                  AND estado = 'VEN'
+                LIMIT 1;
+            ";
 
-            $destinoPendiente = !$cumple;
+            $destinoPendiente = false;
+
+            if ($oCon->Query($sqlTieneVencido) && $oCon->NumFilas() > 0) {
+                $destinoPendiente = true;
+            }
+
             $estadoDestino = $destinoPendiente ? 'P' : 'A';
 
             if ($estadoActual !== $estadoDestino && in_array($estadoActual, array('A', 'P'))) {
