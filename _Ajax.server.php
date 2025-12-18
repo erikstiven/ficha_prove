@@ -7179,6 +7179,27 @@ function FooterMap($id_contrato, $opcion)
 //INICIO FUNCIONES DE LA UAFE Y DOCUMENTOS
 //-----------------------------------------------------------------------------------------
 
+const UAFE_DIAS_AVISO_VENCIMIENTO = 30;
+
+function obtenerEmpresasConUafeActivas($oCon)
+{
+    $empresas = array();
+
+    $sql = "
+        SELECT empr_cod_empr
+        FROM saeempr
+        WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+    ";
+
+    if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+        do {
+            $empresas[] = intval($oCon->f('empr_cod_empr'));
+        } while ($oCon->SiguienteRegistro());
+    }
+
+    return $empresas;
+}
+
 function valorLogicoActivado($valor)
 {
     $normalizado = strtolower(trim((string) $valor));
@@ -7197,6 +7218,61 @@ function usaValidacionUAFE($idempresa, $oCon)
     $valor = consulta_string($sqlUafe, 'emmpr_uafe_cprov', $oCon, 'f');
 
     return valorLogicoActivado($valor);
+}
+
+function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
+{
+    global $DSN;
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $oReturn = new xajaxResponse();
+
+    $diasAviso = intval($diasAviso);
+    if ($diasAviso <= 0) {
+        $diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO;
+    }
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $sql = "
+        SELECT
+            COUNT(DISTINCT CASE WHEN a.fecha_vencimiento_uafe::date < CURRENT_DATE THEN a.id_clpv END) AS vencidos,
+            COUNT(DISTINCT CASE WHEN a.fecha_vencimiento_uafe::date >= CURRENT_DATE AND a.fecha_vencimiento_uafe::date <= CURRENT_DATE + INTERVAL '$diasAviso days' THEN a.id_clpv END) AS proximos
+        FROM comercial.adjuntos_clpv a
+        JOIN comercial.archivos_uafe u
+            ON u.id = a.id_archivo_uafe
+            AND u.empr_cod_empr = a.id_empresa
+            AND u.estado = 'AC'
+        JOIN saeempr e
+            ON e.empr_cod_empr = a.id_empresa
+        WHERE COALESCE(LOWER(e.emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+          AND a.estado <> 'AN'
+          AND a.id_archivo_uafe IS NOT NULL
+          AND a.fecha_vencimiento_uafe IS NOT NULL
+    ";
+
+    $vencidos = 0;
+    $proximos = 0;
+
+    if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+        $vencidos = intval($oCon->f('vencidos'));
+        $proximos = intval($oCon->f('proximos'));
+    }
+
+    $payload = array(
+        'vencidos' => $vencidos,
+        'proximos' => $proximos,
+        'umbral'   => $diasAviso,
+    );
+
+    $oReturn->script("procesarResumenAlertasUafe(" . json_encode($payload) . ");");
+
+    return $oReturn;
 }
 
 function calcularEstadoDocumentoUafe($estadoBd, $fechaVencimiento)
@@ -7454,6 +7530,90 @@ function debeBloquearEstadoPorUafe($idempresa, $id_clpv, $oCon)
     }
 
     return !proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
+}
+
+function recalcularEstadosUafeGlobal()
+{
+    global $DSN, $DSN_Ifx;
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $oReturn = new xajaxResponse();
+
+    if (empty($DSN_Ifx)) {
+        $oReturn->alert('No hay conexión Informix configurada para recalcular estados.');
+        return $oReturn;
+    }
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $oIfx = new Dbo();
+    $oIfx->DSN = $DSN_Ifx;
+    $oIfx->Conectar();
+
+    $empresas = obtenerEmpresasConUafeActivas($oCon);
+
+    $resumen = array(
+        'evaluados' => 0,
+        'cambiados_pendiente' => 0,
+        'cambiados_activo' => 0,
+    );
+
+    if (empty($empresas)) {
+        $oReturn->script("mostrarResultadoRecalculoUafe(" . json_encode($resumen) . ");");
+        return $oReturn;
+    }
+
+    foreach ($empresas as $empresa) {
+        $sqlProv = "
+            SELECT clpv_cod_clpv, clpv_est_clpv
+            FROM saeclpv
+            WHERE clpv_cod_empr = $empresa
+              AND clpv_est_clpv IN ('A','P')
+        ";
+
+        if (!$oIfx->Query($sqlProv) || $oIfx->NumFilas() <= 0) {
+            $oIfx->Free();
+            continue;
+        }
+
+        do {
+            $idProveedor = intval($oIfx->f('clpv_cod_clpv'));
+            $estadoActual = strtoupper(trim($oIfx->f('clpv_est_clpv')));
+
+            if ($idProveedor <= 0) {
+                continue;
+            }
+
+            $resumen['evaluados']++;
+
+            marcarAdjuntosUafeVencidos($empresa, $idProveedor, $oCon);
+            $cumple = proveedorCumpleUafe($empresa, $idProveedor, $oCon);
+
+            $destinoPendiente = !$cumple;
+            $estadoDestino = $destinoPendiente ? 'P' : 'A';
+
+            if ($estadoActual !== $estadoDestino && in_array($estadoActual, array('A', 'P'))) {
+                sincronizarEstadoProveedorPorUafe($empresa, $idProveedor, $destinoPendiente);
+
+                if ($destinoPendiente) {
+                    $resumen['cambiados_pendiente']++;
+                } else {
+                    $resumen['cambiados_activo']++;
+                }
+            }
+        } while ($oIfx->SiguienteRegistro());
+
+        $oIfx->Free();
+    }
+
+    $oReturn->script("mostrarResultadoRecalculoUafe(" . json_encode($resumen) . ");");
+
+    return $oReturn;
 }
 
 function validarEstadoUAFEProveedor($id_clpv)
