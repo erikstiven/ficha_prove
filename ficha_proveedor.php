@@ -1664,7 +1664,7 @@ if (isset($_REQUEST['codpedi'])) {
     <script src="js/uafe_bloqueo.js"></script>
 
     <script>
-        $(document).ready(function() {
+        window.addEventListener('load', function() {
             cargarModalRecalculoUafe();
         });
     </script>
