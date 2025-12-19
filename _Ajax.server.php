@@ -1006,6 +1006,18 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
 
 
                 //------------------------------------------------------------------
+                //INICIO VALIDACIÓN UAFE
+                //------------------------------------------------------------------
+                $sqlUafeEmp = "
+                    SELECT emmpr_uafe_cprov
+                    FROM saeempr
+                    WHERE empr_cod_empr = $idempresa;
+                ";
+
+                $valorUafeRaw = consulta_string($sqlUafeEmp, 'emmpr_uafe_cprov', $oCon, 'f');
+                $usaUAFE = valorLogicoActivado($valorUafeRaw);
+
+                //------------------------------------------------------------------
                 //INICIO ADJUNTOS APARTADO DE SUBIR ADJUNTOS VISUAL
                 //------------------------------------------------------------------
 
@@ -1018,30 +1030,32 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 // Tipo de documento
                 $ifu->AgregarCampoLista('tipo_adj', 'Tipo Documento|left', false, 150, 150, true);
                 $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO GENERAL', 0);
-                $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                if ($usaUAFE) {
+                    $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
 
-                // Documento UAFE se llena dinámicamente
-                $ifu->AgregarCampoLista('id_archivo_uafe', 'Documento UAFE|left', false, 200, 200, true);
+                    // Documento UAFE se llena dinámicamente
+                    $ifu->AgregarCampoLista('id_archivo_uafe', 'Documento UAFE|left', false, 200, 200, true);
 
-                // Cargar catálogo UAFE
-                $sqlUafe = "
-                    SELECT id, titulo
-                    FROM comercial.archivos_uafe
-                    WHERE empr_cod_empr = $idempresa
-                    AND estado = 'AC'
-                    ORDER BY id;
-                ";
-                //echo $sqlUafe;
-                //exit;
+                    // Cargar catálogo UAFE
+                    $sqlUafe = "
+                        SELECT id, titulo
+                        FROM comercial.archivos_uafe
+                        WHERE empr_cod_empr = $idempresa
+                        AND estado = 'AC'
+                        ORDER BY id;
+                    ";
+                    //echo $sqlUafe;
+                    //exit;
 
-                $oCon->Query($sqlUafe);//liberar la conexion
+                    $oCon->Query($sqlUafe);//liberar la conexion
 
-                if ($oCon->NumFilas() > 0) {
-                    do {
-                        $idu = $oCon->f('id');
-                        $tit = $oCon->f('titulo');
-                        $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
-                    } while ($oCon->SiguienteRegistro());
+                    if ($oCon->NumFilas() > 0) {
+                        do {
+                            $idu = $oCon->f('id');
+                            $tit = $oCon->f('titulo');
+                            $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
+                        } while ($oCon->SiguienteRegistro());
+                    }
                 }
 
                 $tableAdjuntos .= '<table class="table table-striped table-condensed" align="center" style="width: 99%;">';
@@ -1069,15 +1083,17 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 $tableAdjuntos .=   '<td></td>';
                 $tableAdjuntos .= '</tr>';
 
-                //Documento UAFE (se mostrará/ocultará completa)
-                $tableAdjuntos .= '<tr id="fila_uafe">';
-                $tableAdjuntos .=   '<td>' . $ifu->ObjetoHtmlLBL('id_archivo_uafe') . '</td>';
-                $tableAdjuntos .=   '<td>' . $ifu->ObjetoHtml('id_archivo_uafe') . '</td>';
-                $tableAdjuntos .=   '<td></td>';
-                $tableAdjuntos .=   '<td></td>';
-                $tableAdjuntos .=   '<td></td>';
-                $tableAdjuntos .=   '<td></td>';
-                $tableAdjuntos .= '</tr>';
+                if ($usaUAFE) {
+                    //Documento UAFE (se mostrará/ocultará completa)
+                    $tableAdjuntos .= '<tr id="fila_uafe">';
+                    $tableAdjuntos .=   '<td>' . $ifu->ObjetoHtmlLBL('id_archivo_uafe') . '</td>';
+                    $tableAdjuntos .=   '<td>' . $ifu->ObjetoHtml('id_archivo_uafe') . '</td>';
+                    $tableAdjuntos .=   '<td></td>';
+                    $tableAdjuntos .=   '<td></td>';
+                    $tableAdjuntos .=   '<td></td>';
+                    $tableAdjuntos .=   '<td></td>';
+                    $tableAdjuntos .= '</tr>';
+                }
 
 
                 $tableAdjuntos .= '<tr>';
@@ -1111,15 +1127,6 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
         //  INICIO VALIDACIÓN UAFE PARA HABILITAR/DESHABILITAR ESTADO
         //------------------------------------------------------------------------------
 
-        // Consultar si la empresa usa validación UAFE
-        $sqlUafeEmp = "
-            SELECT emmpr_uafe_cprov
-            FROM saeempr
-            WHERE empr_cod_empr = $idempresa;
-        ";
-
-        $valorUafeRaw = consulta_string($sqlUafeEmp, 'emmpr_uafe_cprov', $oCon, 'f');
-        $usaUAFE = valorLogicoActivado($valorUafeRaw);
         $oReturn->script("
             console.log('%cline 1: VALOR RAW DE usaUAFE = ' + JSON.stringify('$valorUafeRaw'), 'color:yellow;font-weight:bold');
             console.log('%cline 1b: usaUAFE normalizado = ' + JSON.stringify('$usaUAFE'), 'color:yellow;font-weight:bold');
@@ -1341,17 +1348,19 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
 
             </tr>';
 
-        $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>
-                    <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
-                        DOCUMENTACIÓN UAFE
-                        <span class="glyphicon glyphicon-envelope"></span>
-                    </button>
-                </td>
-            </tr>';
+        if ($usaUAFE) {
+            $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
+                            DOCUMENTACIÓN UAFE
+                            <span class="glyphicon glyphicon-envelope"></span>
+                        </button>
+                    </td>
+                </tr>';
+        }
             
 
 
