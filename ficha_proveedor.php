@@ -677,10 +677,11 @@ if (isset($_REQUEST['codpedi'])) {
         function seleccionaItem(id) {
             const usaUafe = typeof window.usaUafeEmpresa !== 'undefined' ? window.usaUafeEmpresa : false;
 
-            if (usaUafe) {
-                habilitarEstadoProveedor(true);
-            }
             xajax_seleccionaItem(xajax.getFormValues("form1"), id);
+
+            if (usaUafe) {
+                xajax_validarEstadoUAFEProveedor(id);
+            }
         }
 
         function cargarDatosProd(a, b) {

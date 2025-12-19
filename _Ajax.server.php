@@ -7487,16 +7487,6 @@ function validarEstadoUAFEProveedor($id_clpv)
 
     if (!$usaUafe) {
         $oReturn->script("habilitarEstadoProveedor(false);");
-
-        $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-        if ($estadoVisual === '' && empty($id_clpv)) {
-            $estadoVisual = 'AC';
-        }
-
-        if ($estadoVisual !== '') {
-            $oReturn->script("editar('$estadoVisual');");
-        }
-
         return $oReturn;
     }
 
@@ -7504,15 +7494,6 @@ function validarEstadoUAFEProveedor($id_clpv)
     $bloquear = !$cumple;
 
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
-
-    $estadoVisual = $bloquear ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-    if ($estadoVisual === '' && empty($id_clpv)) {
-        $estadoVisual = 'AC';
-    }
-
-    if ($estadoVisual !== '') {
-        $oReturn->script("editar('$estadoVisual');");
-    }
 
     return $oReturn;
 }
@@ -8274,7 +8255,6 @@ function consultarAdjuntosUafe($aForm = '')
     $cumple   = proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
     $bloquear = !$cumple;
 
-    $oReturn->script("editar('" . ($bloquear ? 'PE' : 'AC') . "');");
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
 
     return $oReturn;
@@ -8325,12 +8305,10 @@ function guardarAdjuntosUAFE($id_clpv)
     sincronizarEstadoProveedorPorUafe($idempresa, $id_clpv, $bloquearEstado);
 
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquearEstado ? 'true' : 'false') . ");");
-
-    $estadoVisual = $bloquearEstado ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-    if ($estadoVisual === '') {
-        $estadoVisual = $bloquearEstado ? 'PE' : 'AC';
+    $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
+    if ($estadoVisual !== '') {
+        $oReturn->script("editar('$estadoVisual');");
     }
-    $oReturn->script("editar('$estadoVisual');");
 
     if ($usaUafe) {
         if ($cumpleDespues) {
