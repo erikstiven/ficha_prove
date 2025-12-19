@@ -1018,7 +1018,12 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 // Tipo de documento
                 $ifu->AgregarCampoLista('tipo_adj', 'Tipo Documento|left', false, 150, 150, true);
                 $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO GENERAL', 0);
-                $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idempresa";
+                $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfx, 'f');
+                $mostrarAdjuntoUafe = ($usaUafeModal == 't' || $usaUafeModal == 1 || $usaUafeModal == '1' || $usaUafeModal === true);
+                if ($mostrarAdjuntoUafe) {
+                    $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                }
 
                 // Documento UAFE se llena dinámicamente
                 $ifu->AgregarCampoLista('id_archivo_uafe', 'Documento UAFE|left', false, 200, 200, true);
@@ -1034,14 +1039,16 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 //echo $sqlUafe;
                 //exit;
 
-                $oCon->Query($sqlUafe);//liberar la conexion
+                if ($mostrarAdjuntoUafe) {
+                    $oCon->Query($sqlUafe);//liberar la conexion
 
-                if ($oCon->NumFilas() > 0) {
-                    do {
-                        $idu = $oCon->f('id');
-                        $tit = $oCon->f('titulo');
-                        $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
-                    } while ($oCon->SiguienteRegistro());
+                    if ($oCon->NumFilas() > 0) {
+                        do {
+                            $idu = $oCon->f('id');
+                            $tit = $oCon->f('titulo');
+                            $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
+                        } while ($oCon->SiguienteRegistro());
+                    }
                 }
 
                 $tableAdjuntos .= '<table class="table table-striped table-condensed" align="center" style="width: 99%;">';
