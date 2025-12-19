@@ -7353,6 +7353,18 @@ function obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon)
 
     $fecha = consulta_string($sqlV, 'tprov_venc_uafe', $oCon, '');
 
+    if ($fecha === '') {
+        $sqlFallback = "
+            SELECT tprov_venc_uafe
+            FROM saetprov
+            WHERE tprov_cod_empr = $idempresa
+              AND COALESCE(tprov_venc_uafe, '') <> ''
+            LIMIT 1
+        ";
+
+        $fecha = consulta_string($sqlFallback, 'tprov_venc_uafe', $oCon, '');
+    }
+
     return ($fecha !== '') ? substr($fecha, 0, 10) : '';
 }
 
@@ -7571,15 +7583,12 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
             ON u.id = a.id_archivo_uafe
             AND u.empr_cod_empr = a.id_empresa
             AND u.estado = 'AC'
-        JOIN saeclpv c
-            ON c.clpv_cod_clpv = a.id_clpv
-            AND c.clpv_cod_empr = a.id_empresa
         LEFT JOIN saetprov t
             ON t.tprov_cod_empr = a.id_empresa
-            AND t.tprov_cod_tprov = c.clpv_cod_tprov
         WHERE a.id_empresa IN ($lista)
           AND a.id_archivo_uafe IS NOT NULL
-          AND COALESCE(a.estado, 'PE') <> 'AN'
+          AND COALESCE(a.estado, 'PE') = 'AC'
+          AND a.fecha_entrega IS NOT NULL
     ";
 
     if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
