@@ -1732,7 +1732,7 @@ if (isset($_SESSION['U_EMPRESA'])) {
 
     <script src="js/uafe_bloqueo.js"></script>
 
-    <?php if ($usaUafeModal == 't') { ?>
+    <?php if ($usaUafeModal == 't' || $usaUafeModal == 1) { ?>
         <script>
             window.addEventListener('load', function() {
                 cargarModalRecalculoUafe();
