@@ -7282,6 +7282,8 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     }
 
     $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
+    $oReturn->alert('DEBUG UAFE: empresas con UAFE activo = ' . count($empresas));
+
     $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
 
     $vencidos = 0;
@@ -7312,6 +7314,8 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
             $oIfx->Free();
         }
     }
+
+    $oReturn->alert('DEBUG UAFE: vencidos=' . $vencidos . ' total_evaluables=' . $totalEvaluables);
 
     $payload = array(
         'mostrar'             => true,
