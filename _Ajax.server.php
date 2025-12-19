@@ -1018,7 +1018,12 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 // Tipo de documento
                 $ifu->AgregarCampoLista('tipo_adj', 'Tipo Documento|left', false, 150, 150, true);
                 $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO GENERAL', 0);
-                $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idempresa";
+                $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfx, 'f');
+                $mostrarAdjuntoUafe = ($usaUafeModal == 't' || $usaUafeModal == 1 || $usaUafeModal == '1' || $usaUafeModal === true);
+                if ($mostrarAdjuntoUafe) {
+                    $ifu->AgregarOpcionCampoLista('tipo_adj', 'DOCUMENTO UAFE', 1);
+                }
 
                 // Documento UAFE se llena dinámicamente
                 $ifu->AgregarCampoLista('id_archivo_uafe', 'Documento UAFE|left', false, 200, 200, true);
@@ -1034,14 +1039,16 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 //echo $sqlUafe;
                 //exit;
 
-                $oCon->Query($sqlUafe);//liberar la conexion
+                if ($mostrarAdjuntoUafe) {
+                    $oCon->Query($sqlUafe);//liberar la conexion
 
-                if ($oCon->NumFilas() > 0) {
-                    do {
-                        $idu = $oCon->f('id');
-                        $tit = $oCon->f('titulo');
-                        $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
-                    } while ($oCon->SiguienteRegistro());
+                    if ($oCon->NumFilas() > 0) {
+                        do {
+                            $idu = $oCon->f('id');
+                            $tit = $oCon->f('titulo');
+                            $ifu->AgregarOpcionCampoLista('id_archivo_uafe', $tit, $idu);
+                        } while ($oCon->SiguienteRegistro());
+                    }
                 }
 
                 $tableAdjuntos .= '<table class="table table-striped table-condensed" align="center" style="width: 99%;">';
@@ -1341,17 +1348,22 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
 
             </tr>';
 
-        $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>
-                    <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
-                        DOCUMENTACIÓN UAFE
-                        <span class="glyphicon glyphicon-envelope"></span>
-                    </button>
-                </td>
-            </tr>';
+        $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idempresa";
+        $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfx, 'f');
+        $mostrarBotonUafe = ($usaUafeModal == 't' || $usaUafeModal == 1 || $usaUafeModal == '1' || $usaUafeModal === true);
+        if ($mostrarBotonUafe) {
+            $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
+                            DOCUMENTACIÓN UAFE
+                            <span class="glyphicon glyphicon-envelope"></span>
+                        </button>
+                    </td>
+                </tr>';
+        }
             
 
 
@@ -1689,6 +1701,11 @@ function obtenerAdjuntosProveedorHTML($idempresa, $oCon)
 
     return $oReturn;
 }*/
+
+function notificarDocumentosUAFE($aForm)
+{
+    return enviar_mail($aForm);
+}
 
 function enviar_mail($aForm)
 {
@@ -8317,8 +8334,8 @@ function guardarAdjuntosUAFE($id_clpv)
         if ($cumpleDespues) {
             $mensaje = array(
                 'icon'  => 'success',
-                'title' => 'Documentos UAFE ENTREGADOS',
-                'text'  => 'Se cumplen con todos los documentos solicitados. El proveedor pasará a estado Activo.',
+                'title' => 'Documentos UAFE entregados',
+                'text'  => 'Se cumplen todos los documentos solicitados. El proveedor pasará a estado Activo.',
             );
         } elseif ($cumpliaAntes && !$cumpleDespues) {
             $mensaje = array(
@@ -8338,7 +8355,8 @@ function guardarAdjuntosUAFE($id_clpv)
             icon: '{$mensaje['icon']}',
             title: '{$mensaje['title']}',
             text: '{$mensaje['text']}',
-            confirmButtonText: 'Aceptar'
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#3085d6'
         });");
     }
 

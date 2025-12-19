@@ -16,6 +16,19 @@ if (isset($_REQUEST['codpedi'])) {
 } else {
     $codpedi = 0;
 }
+
+$usaUafeModal = 'f';
+if (isset($_SESSION['U_EMPRESA'])) {
+    $idEmpresaUafe = intval($_SESSION['U_EMPRESA']);
+    if ($idEmpresaUafe > 0) {
+        $oIfxUafe = new Dbo;
+        $oIfxUafe->DSN = $DSN_Ifx;
+        $oIfxUafe->Conectar();
+        $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idEmpresaUafe";
+        $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfxUafe, 'f');
+        $oIfxUafe->Free();
+    }
+}
 ?>
 
 <? if ($ejecuta) { ?>
@@ -190,12 +203,10 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function mostrarModalRecalculoUafe(conteo) {
-            var total = arguments.length > 1 ? arguments[1] : conteo;
             var $boton = $("#btnRecalcularUafe");
             var $resultado = $("#uafeRecalculoResultado");
 
             $("#uafeTotalVencidos").text(conteo);
-            $("#uafeTotalEvaluados").text(total);
 
             $resultado.addClass('d-none').removeClass('alert-success alert-info alert-danger').text('');
             $boton.prop('disabled', false).html('<i class="fa fa-sync"></i> Recalcular estados UAFE');
@@ -1053,8 +1064,8 @@ if (isset($_REQUEST['codpedi'])) {
 
         function notificarDocumentosUAFE() {
             let id_clpv = document.getElementById("codigoCliente").value;
-            if (id_clpv !== '') {
-                xajax_notificarDocumentosUAFE(id_clpv);
+            if (id_clpv !== '' && id_clpv !== '0') {
+                enviar_mail();
             } else {
                 alert("Seleccione Cliente para continuar...!");
             }
@@ -1603,19 +1614,11 @@ if (isset($_REQUEST['codpedi'])) {
                             </div>
                             <div class="modal-body">
                                 <div class="row text-center" style="margin-bottom: 15px;">
-                                    <div class="col-md-6">
+                                    <div class="col-md-6 col-md-offset-3">
                                         <div class="panel panel-danger uafe-metric">
                                             <div class="panel-body">
                                                 <h3 class="text-danger" id="uafeTotalVencidos">0</h3>
-                                                <small>Proveedores con UAFE vencido</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="panel panel-default uafe-metric">
-                                            <div class="panel-body">
-                                                <h3 id="uafeTotalEvaluados">0</h3>
-                                                <small>Total proveedores evaluados</small>
+                                                <small>Proveedores activos con documentos UAFE vencidos</small>
                                             </div>
                                         </div>
                                     </div>
@@ -1623,9 +1626,7 @@ if (isset($_REQUEST['codpedi'])) {
 
                                 <div class="alert alert-warning">
                                     <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Existen proveedores activos cuyos documentos requeridos por la UAFE no cumplen con el período vigente.</strong>
-                                    El recálculo sincroniza el estado del proveedor con su condición real de cumplimiento,
-                                    independientemente del proveedor en pantalla.
+                                    <strong>El recálculo cambiará el estado de estos proveedores a Pendiente hasta que regularicen su documentación.</strong>
                                 </div>
 
                                 <div id="uafeRecalculoResultado" class="alert d-none" style="margin-bottom: 0;"></div>
@@ -1719,11 +1720,13 @@ if (isset($_REQUEST['codpedi'])) {
 
     <script src="js/uafe_bloqueo.js"></script>
 
-    <script>
-        window.addEventListener('load', function() {
-            cargarModalRecalculoUafe();
-        });
-    </script>
+    <?php if ($usaUafeModal == 't' || $usaUafeModal == 1) { ?>
+        <script>
+            window.addEventListener('load', function() {
+                cargarModalRecalculoUafe();
+            });
+        </script>
+    <?php } ?>
 
 
     <script>
