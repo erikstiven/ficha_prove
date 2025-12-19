@@ -1341,17 +1341,22 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
 
             </tr>';
 
-        $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
-                <td></td>
-                <td></td>
-                <td></td>
-                <td>
-                    <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
-                        DOCUMENTACIÓN UAFE
-                        <span class="glyphicon glyphicon-envelope"></span>
-                    </button>
-                </td>
-            </tr>';
+        $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idempresa";
+        $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfx, 'f');
+        $mostrarBotonUafe = ($usaUafeModal == 't' || $usaUafeModal == 1 || $usaUafeModal == '1' || $usaUafeModal === true);
+        if ($mostrarBotonUafe) {
+            $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                        <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
+                            DOCUMENTACIÓN UAFE
+                            <span class="glyphicon glyphicon-envelope"></span>
+                        </button>
+                    </td>
+                </tr>';
+        }
             
 
 
@@ -1689,6 +1694,11 @@ function obtenerAdjuntosProveedorHTML($idempresa, $oCon)
 
     return $oReturn;
 }*/
+
+function notificarDocumentosUAFE($aForm)
+{
+    return enviar_mail($aForm);
+}
 
 function enviar_mail($aForm)
 {
