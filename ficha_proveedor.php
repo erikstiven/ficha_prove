@@ -172,6 +172,47 @@ if (isset($_REQUEST['codpedi'])) {
             xajax_consultar_cash(clpv);
         }
 
+        function cargarModalRecalculoUafe() {
+            xajax_obtenerConteoProveedoresUafeVencida();
+        }
+
+        function mostrarModalRecalculoUafe(conteo) {
+            var mensaje = '';
+            var $boton = $("#btnRecalcularUafe");
+            var $resultado = $("#uafeRecalculoResultado");
+
+            if (parseInt(conteo, 10) > 0) {
+                mensaje = 'Existen <strong>' + conteo + '</strong> proveedores activos con documentación UAFE vencida.<br>¿Desea recalcular el estado de estos proveedores?';
+                $boton.prop('disabled', false).show();
+            } else {
+                mensaje = 'No existen proveedores con documentación UAFE vencida.';
+                $boton.hide();
+            }
+
+            $("#uafeRecalculoMensaje").html(mensaje);
+            $resultado.hide().removeClass('alert-success alert-info').text('');
+            $("#modalUafeRecalculo").modal("show");
+        }
+
+        function ejecutarRecalculoUafe() {
+            $("#btnRecalcularUafe").prop('disabled', true);
+            xajax_recalcularEstadosUafeProveedores();
+        }
+
+        function mostrarResultadoRecalculoUafe(afectados) {
+            var $resultado = $("#uafeRecalculoResultado");
+
+            if (parseInt(afectados, 10) > 0) {
+                $resultado.removeClass('alert-info').addClass('alert-success').text('Se actualizaron ' + afectados + ' proveedores a estado PENDIENTE.').show();
+                $("#uafeRecalculoMensaje").html('Validación UAFE completada.');
+            } else {
+                $resultado.removeClass('alert-success').addClass('alert-info').text('No existen proveedores con documentación UAFE vencida.').show();
+                $("#uafeRecalculoMensaje").html('Validación UAFE');
+            }
+
+            $("#btnRecalcularUafe").hide();
+        }
+
         function edit_del_cash(id, exe, clpv) {
 
             var ruc = document.getElementById('ruc_' + id).value;
@@ -1522,6 +1563,27 @@ if (isset($_REQUEST['codpedi'])) {
                     <div class="modal fade" id="miModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
                 </div>
 
+                <div class="modal fade" id="modalUafeRecalculo" tabindex="-1" role="dialog" aria-labelledby="modalUafeRecalculoLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                                <h4 class="modal-title" id="modalUafeRecalculoLabel">Validación UAFE</h4>
+                            </div>
+                            <div class="modal-body">
+                                <p id="uafeRecalculoMensaje" style="margin-bottom: 10px;"></p>
+                                <div id="uafeRecalculoResultado" class="alert" style="display: none; margin-bottom: 0;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" id="btnRecalcularUafe" onclick="ejecutarRecalculoUafe();">Recalcular estados UAFE</button>
+                                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal fade" id="ModalMapa" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg" style="width: 90%">
                         <div class="modal-content">
@@ -1600,6 +1662,12 @@ if (isset($_REQUEST['codpedi'])) {
     </body>
 
     <script src="js/uafe_bloqueo.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            cargarModalRecalculoUafe();
+        });
+    </script>
 
 
     <script>

@@ -7517,6 +7517,118 @@ function validarEstadoUAFEProveedor($id_clpv)
     return $oReturn;
 }
 
+function obtenerConteoProveedoresUafeVencida()
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    global $DSN;
+
+    $oReturn = new xajaxResponse();
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $conteo = 0;
+
+    try {
+        $sql = "
+            SELECT COUNT(DISTINCT a.id_clpv) AS proveedores_a_recalcular
+            FROM saeclpv p
+            JOIN comercial.adjuntos_clpv a
+              ON a.id_clpv    = p.clpv_cod_clpv
+             AND a.id_empresa = p.clpv_cod_empr
+            WHERE
+                p.clpv_est_clpv = 'A'
+                AND a.id_archivo_uafe IS NOT NULL
+                AND a.estado = 'AC'
+                AND a.fecha_vencimiento_uafe IS NOT NULL
+                AND CURRENT_DATE > a.fecha_vencimiento_uafe;
+        ";
+
+        if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+            $conteo = intval($oCon->f('proveedores_a_recalcular'));
+        }
+    } catch (Exception $e) {
+        $oReturn->alert($e->getMessage());
+        return $oReturn;
+    }
+
+    $oReturn->script("mostrarModalRecalculoUafe(" . $conteo . ");");
+
+    return $oReturn;
+}
+
+function recalcularEstadosUafeProveedores()
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    global $DSN;
+
+    $oReturn = new xajaxResponse();
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $conteo = 0;
+
+    try {
+        $sqlConteo = "
+            SELECT COUNT(DISTINCT a.id_clpv) AS proveedores_a_recalcular
+            FROM saeclpv p
+            JOIN comercial.adjuntos_clpv a
+              ON a.id_clpv    = p.clpv_cod_clpv
+             AND a.id_empresa = p.clpv_cod_empr
+            WHERE
+                p.clpv_est_clpv = 'A'
+                AND a.id_archivo_uafe IS NOT NULL
+                AND a.estado = 'AC'
+                AND a.fecha_vencimiento_uafe IS NOT NULL
+                AND CURRENT_DATE > a.fecha_vencimiento_uafe;
+        ";
+
+        if ($oCon->Query($sqlConteo) && $oCon->NumFilas() > 0) {
+            $conteo = intval($oCon->f('proveedores_a_recalcular'));
+        }
+
+        if ($conteo > 0) {
+            $oCon->QueryT('BEGIN;');
+
+            $sqlUpdate = "
+                UPDATE saeclpv p
+                SET clpv_est_clpv = 'P'
+                WHERE p.clpv_est_clpv = 'A'
+                  AND EXISTS (
+                        SELECT 1
+                        FROM comercial.adjuntos_clpv a
+                        WHERE a.id_clpv    = p.clpv_cod_clpv
+                          AND a.id_empresa = p.clpv_cod_empr
+                          AND a.id_archivo_uafe IS NOT NULL
+                          AND a.estado = 'AC'
+                          AND a.fecha_vencimiento_uafe IS NOT NULL
+                          AND CURRENT_DATE > a.fecha_vencimiento_uafe
+                  );
+            ";
+
+            $oCon->QueryT($sqlUpdate);
+            $oCon->QueryT('COMMIT;');
+        }
+    } catch (Exception $e) {
+        $oCon->QueryT('ROLLBACK;');
+        $oReturn->alert($e->getMessage());
+        return $oReturn;
+    }
+
+    $oReturn->script("mostrarResultadoRecalculoUafe(" . $conteo . ");");
+
+    return $oReturn;
+}
+
 
 function agrega_modifica_gridAdj($nTipo = 0,  $aForm = '', $id = '', $total_fact = '')
 {
