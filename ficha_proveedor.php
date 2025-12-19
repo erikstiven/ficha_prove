@@ -1060,6 +1060,14 @@ if (isset($_REQUEST['codpedi'])) {
             }
         }
 
+        function toggleNotificarUafe(mostrar) {
+            var fila = document.getElementById('filaNotificarUafe');
+            if (!fila) {
+                return;
+            }
+            fila.style.display = mostrar ? '' : 'none';
+        }
+
     </script>
 
     <script>

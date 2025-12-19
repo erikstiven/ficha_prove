@@ -1096,17 +1096,6 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 $tableAdjuntos .= '</tr>';
 
 
-                $tableAdjuntos .= '<tr>';
-                $tableAdjuntos .= '
-                    <td colspan="6" style="padding-top: 10px; padding-bottom: 10px;">
-                        <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
-                            Notificar Documentación UAFE Requerida
-                            <span class="glyphicon glyphicon-envelope"></span>
-                        </button>
-                    </td>
-                ';
-                $tableAdjuntos .= '</tr>';
-
                 $tableAdjuntos .= '</table>';
                 //------------------------------------------------------------------
                 //FIN ADJUNTOS APARTADO DE SUBIR ADJUNTOS VISUAL
@@ -1350,6 +1339,18 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 </td>
 
 
+            </tr>';
+
+        $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>
+                    <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
+                        DOCUMENTACIÓN UAFE
+                        <span class="glyphicon glyphicon-envelope"></span>
+                    </button>
+                </td>
             </tr>';
             
 
@@ -7487,6 +7488,7 @@ function validarEstadoUAFEProveedor($id_clpv)
 
     if (!$usaUafe) {
         $oReturn->script("habilitarEstadoProveedor(false);");
+        $oReturn->script("toggleNotificarUafe(false);");
         return $oReturn;
     }
 
@@ -7494,6 +7496,7 @@ function validarEstadoUAFEProveedor($id_clpv)
     $bloquear = !$cumple;
 
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
+    $oReturn->script("toggleNotificarUafe(true);");
 
     return $oReturn;
 }
