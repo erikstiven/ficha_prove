@@ -7222,107 +7222,11 @@ function valorLogicoActivado($valor)
 
 function actualizarEstadosAdjuntosUafe($oCon)
 {
-    $resumen = array(
+    return array(
         'procesados' => 0,
         'marcados_vc' => 0,
         'marcados_ac' => 0,
     );
-
-    if (!$oCon) {
-        return $resumen;
-    }
-
-    $mapaVencimientos = array();
-
-    $sqlVencimientos = "
-        SELECT c.clpv_cod_empr AS empresa, c.clpv_cod_clpv AS proveedor, p.tprov_venc_uafe
-        FROM saeclpv c
-        JOIN saetprov p
-            ON p.tprov_cod_empr = c.clpv_cod_empr
-           AND p.tprov_cod_tprov = c.clpv_cod_tprov
-        WHERE COALESCE(p.tprov_venc_uafe, '') <> ''
-    ";
-
-    if ($oCon->Query($sqlVencimientos) && $oCon->NumFilas() > 0) {
-        do {
-            $empresa  = intval($oCon->f('empresa'));
-            $proveedor = intval($oCon->f('proveedor'));
-            $fechaVenc = substr(trim($oCon->f('tprov_venc_uafe')), 0, 10);
-
-            if ($empresa > 0 && $proveedor > 0 && $fechaVenc !== '') {
-                $mapaVencimientos[$empresa][$proveedor] = $fechaVenc;
-            }
-        } while ($oCon->SiguienteRegistro());
-    }
-
-    if (empty($mapaVencimientos)) {
-        return $resumen;
-    }
-
-    $sqlAdjuntos = "
-        SELECT id, id_empresa, id_clpv, estado, fecha_entrega
-        FROM comercial.adjuntos_clpv
-        WHERE id_archivo_uafe IS NOT NULL
-    ";
-
-    if (!$oCon->Query($sqlAdjuntos) || $oCon->NumFilas() <= 0) {
-        return $resumen;
-    }
-
-    $oCon->QueryT("BEGIN;");
-
-    try {
-        do {
-            $idAdj      = intval($oCon->f('id'));
-            $empresa    = intval($oCon->f('id_empresa'));
-            $proveedor  = intval($oCon->f('id_clpv'));
-            $estadoOrig = strtoupper(trim($oCon->f('estado')));
-            $fechaEnt   = substr(trim($oCon->f('fecha_entrega')), 0, 10);
-
-            if ($idAdj <= 0 || $empresa <= 0 || $proveedor <= 0) {
-                continue;
-            }
-
-            if (!isset($mapaVencimientos[$empresa][$proveedor])) {
-                continue;
-            }
-
-            $fechaVenc = $mapaVencimientos[$empresa][$proveedor];
-
-            if ($fechaEnt === '' || $fechaVenc === '') {
-                continue;
-            }
-
-            $estadoNuevo = ($fechaEnt < $fechaVenc) ? 'VC' : 'AC';
-
-            if ($estadoNuevo === $estadoOrig) {
-                $resumen['procesados']++;
-                continue;
-            }
-
-            $sqlUpd = "
-                UPDATE comercial.adjuntos_clpv
-                SET estado = '$estadoNuevo'
-                WHERE id = $idAdj
-            ";
-
-            $oCon->QueryT($sqlUpd);
-
-            $resumen['procesados']++;
-
-            if ($estadoNuevo === 'VC') {
-                $resumen['marcados_vc']++;
-            } else {
-                $resumen['marcados_ac']++;
-            }
-        } while ($oCon->SiguienteRegistro());
-
-        $oCon->QueryT("COMMIT;");
-    } catch (Exception $e) {
-        $oCon->QueryT("ROLLBACK;");
-    }
-
-    return $resumen;
 }
 
 function usaValidacionUAFE($idempresa, $oCon)
@@ -7403,9 +7307,10 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     return $oReturn;
 }
 
-function calcularEstadoVirtualAdjuntoUafe($estadoBd, $fechaEntrega, $fechaVencimientoUafe)
+function evaluarVencimientoUafeAdjunto($estadoBd, $fechaEntrega, $fechaVencimientoUafe)
 {
-    $estadoBase = $estadoBd ?: 'PE';
+    $estadoBase = strtoupper(trim((string) $estadoBd));
+    $estadoBase = $estadoBase !== '' ? $estadoBase : 'PE';
 
     if ($estadoBase !== 'AC') {
         return array(
@@ -7430,13 +7335,6 @@ function calcularEstadoVirtualAdjuntoUafe($estadoBd, $fechaEntrega, $fechaVencim
         'estado_visual' => $vencido ? 'VE' : 'AC',
         'vencido'       => $vencido,
     );
-}
-
-function calcularEstadoDocumentoUafe($estadoBd, $fechaVencimiento)
-{
-    $resultado = calcularEstadoVirtualAdjuntoUafe($estadoBd, $fechaVencimiento, $fechaVencimiento);
-
-    return $resultado['estado_visual'];
 }
 
 function obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon)
@@ -7487,10 +7385,11 @@ function proveedorCumpleUafe($idempresa, $id_clpv, $oCon)
         return true;
     }
 
+    $fechaVencimiento = obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon);
     $todosActivos = true;
 
     do {
-        $resultado = calcularEstadoVirtualAdjuntoUafe($oCon->f('estado_adj'), $oCon->f('fecha_entrega'), $fechaVencimiento);
+        $resultado = evaluarVencimientoUafeAdjunto($oCon->f('estado_adj'), $oCon->f('fecha_entrega'), $fechaVencimiento);
 
         if ($resultado['estado_visual'] !== 'AC') {
             $todosActivos = false;
@@ -7499,22 +7398,6 @@ function proveedorCumpleUafe($idempresa, $id_clpv, $oCon)
     } while ($oCon->SiguienteRegistro());
 
     return $todosActivos;
-}
-
-function marcarAdjuntosUafeVencidos($idempresa, $id_clpv, $oCon)
-{
-    $sql = "
-        UPDATE comercial.adjuntos_clpv
-        SET estado = 'PE'
-        WHERE id_empresa = $idempresa
-          AND id_clpv = $id_clpv
-          AND id_archivo_uafe IS NOT NULL
-          AND estado = 'AC'
-          AND fecha_entrega IS NOT NULL
-          AND fecha_entrega::date < CURRENT_DATE
-    ";
-
-    $oCon->Query($sql);
 }
 
 function registrarCambioUafeTemporal($id_clpv, $id_uafe, $estado)
@@ -7527,7 +7410,8 @@ function registrarCambioUafeTemporal($id_clpv, $id_uafe, $estado)
         $_SESSION['uafeCambios'][$id_clpv] = [];
     }
 
-    $_SESSION['uafeCambios'][$id_clpv][$id_uafe] = $estado;
+    $estadoNormalizado = (strtoupper(trim((string) $estado)) === 'AC') ? 'AC' : 'PE';
+    $_SESSION['uafeCambios'][$id_clpv][$id_uafe] = $estadoNormalizado;
 }
 
 function aplicarCambiosUafePendientes($idempresa, $idsucursal, $id_clpv, $oCon)
@@ -7706,7 +7590,7 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
             $entrega  = $oCon->f('fecha_entrega');
             $vencUafe = $oCon->f('tprov_venc_uafe');
 
-            $resultado = calcularEstadoVirtualAdjuntoUafe($estado, $entrega, $vencUafe);
+            $resultado = evaluarVencimientoUafeAdjunto($estado, $entrega, $vencUafe);
 
             if (!isset($mapa[$idEmpr])) {
                 $mapa[$idEmpr] = array();
@@ -8477,7 +8361,7 @@ function consultarAdjuntosUafe($aForm = '')
                 $fecEnt = "---";
             }
 
-            $estadoCalculado = calcularEstadoVirtualAdjuntoUafe($estado, $oCon->f('fecha_entrega'), $fechaVencimientoUafe);
+            $estadoCalculado = evaluarVencimientoUafeAdjunto($estado, $oCon->f('fecha_entrega'), $fechaVencimientoUafe);
             $estadoCalculado = is_array($estadoCalculado) ? $estadoCalculado['estado_visual'] : $estadoCalculado;
 
             $estadoMostrar = $estadoCalculado;
