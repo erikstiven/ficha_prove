@@ -7190,7 +7190,7 @@ function obtenerEmpresasConUafeActivas($oCon, $oIfx = null)
         $sql = "
             SELECT empr_cod_empr
             FROM saeempr
-            WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+            WHERE COALESCE(emmpr_uafe_cprov, false) = true
         ";
 
         if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
@@ -7204,7 +7204,7 @@ function obtenerEmpresasConUafeActivas($oCon, $oIfx = null)
         $sql = "
             SELECT empr_cod_empr
             FROM saeempr
-            WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+            WHERE COALESCE(emmpr_uafe_cprov, false) = true
         ";
 
         if ($oIfx->Query($sql) && $oIfx->NumFilas() > 0) {
@@ -7271,30 +7271,20 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     $oReturn = new xajaxResponse();
 
     try {
-        error_log('UAFE: paso 1 inicio obtenerResumenAlertasUafe');
-
         $oCon = new Dbo();
         $oCon->DSN = $DSN;
         $oCon->Conectar();
-        error_log('UAFE: paso 2 conexion DSN principal OK');
 
         $oIfx = null;
         if (!empty($DSN_Ifx)) {
             $oIfx = new Dbo();
             $oIfx->DSN = $DSN_Ifx;
             $oIfx->Conectar();
-            error_log('UAFE: paso 3 conexion DSN_Ifx OK');
-        } else {
-            error_log('UAFE: paso 3 sin DSN_Ifx configurado');
         }
 
         $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
-        error_log('UAFE: paso 4 empresas UAFE activas = ' . count($empresas));
-        $oReturn->alert('UAFE paso 4 OK: empresas=' . count($empresas));
 
         $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
-        error_log('UAFE: paso 5 mapa vencidos construido');
-        $oReturn->alert('UAFE paso 5 OK: mapa vencidos generado');
 
         $vencidos = 0;
 
@@ -7325,9 +7315,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
             }
         }
 
-        error_log('UAFE: paso 6 vencidos=' . $vencidos . ' total_evaluables=' . $totalEvaluables);
-        $oReturn->alert('UAFE paso 6 OK: vencidos=' . $vencidos . ' total=' . $totalEvaluables);
-
         $payload = array(
             'mostrar'             => true,
             'vencidos'            => $vencidos,
@@ -7336,8 +7323,6 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
         );
 
         $oReturn->script("procesarResumenAlertasUafe(" . json_encode($payload) . ");");
-        error_log('UAFE: paso 7 respuesta xajax enviada');
-        $oReturn->alert('UAFE paso 7 OK: respuesta enviada');
     } catch (Throwable $e) {
         error_log('UAFE ERROR: ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
         $oReturn->alert('UAFE ERROR: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
@@ -7346,34 +7331,16 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
     return $oReturn;
 }
 
-function evaluarVencimientoUafeAdjunto($estadoBd, $fechaEntrega, $fechaVencimientoUafe)
+function calcularEstadoUafeReal($fechaEntrega, $fechaVencimientoUafe)
 {
-    $estadoBase = strtoupper(trim((string) $estadoBd));
-    $estadoBase = $estadoBase !== '' ? $estadoBase : 'PE';
-
-    if ($estadoBase !== 'AC') {
-        return array(
-            'estado_visual' => 'PE',
-            'vencido'       => false,
-        );
-    }
-
     $fechaEntrega     = ($fechaEntrega) ? substr($fechaEntrega, 0, 10) : '';
     $fechaVencimiento = ($fechaVencimientoUafe) ? substr($fechaVencimientoUafe, 0, 10) : '';
 
     if ($fechaEntrega === '' || $fechaVencimiento === '') {
-        return array(
-            'estado_visual' => 'AC',
-            'vencido'       => false,
-        );
+        return 'AC';
     }
 
-    $vencido = ($fechaEntrega < $fechaVencimiento);
-
-    return array(
-        'estado_visual' => $vencido ? 'VE' : 'AC',
-        'vencido'       => $vencido,
-    );
+    return ($fechaEntrega < $fechaVencimiento) ? 'VC' : 'AC';
 }
 
 function obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon)
@@ -7439,9 +7406,11 @@ function proveedorCumpleUafe($idempresa, $id_clpv, $oCon)
     $todosActivos = true;
 
     do {
-        $resultado = evaluarVencimientoUafeAdjunto($oCon->f('estado_adj'), $oCon->f('fecha_entrega'), $fechaVencimiento);
+        $estadoAdj = strtoupper(trim((string) $oCon->f('estado_adj')));
+        $estadoAdj = $estadoAdj !== '' ? $estadoAdj : 'PE';
+        $estadoReal = ($estadoAdj === 'AC') ? calcularEstadoUafeReal($oCon->f('fecha_entrega'), $fechaVencimiento) : 'PE';
 
-        if ($resultado['estado_visual'] !== 'AC') {
+        if ($estadoReal !== 'AC') {
             $todosActivos = false;
             break;
         }
@@ -7604,7 +7573,6 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
     $mapa = array();
 
     if (empty($empresas)) {
-        error_log('UAFE: mapa vencidos sin empresas');
         return $mapa;
     }
 
@@ -7636,7 +7604,6 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
     ";
 
     if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
-        error_log('UAFE: mapa vencidos filas=' . $oCon->NumFilas());
         do {
             $idEmpr   = intval($oCon->f('id_empresa'));
             $idProv   = intval($oCon->f('id_clpv'));
@@ -7644,7 +7611,9 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
             $entrega  = $oCon->f('fecha_entrega');
             $vencUafe = $oCon->f('tprov_venc_uafe');
 
-            $resultado = evaluarVencimientoUafeAdjunto($estado, $entrega, $vencUafe);
+            $estadoBase = strtoupper(trim((string) $estado));
+            $estadoBase = $estadoBase !== '' ? $estadoBase : 'PE';
+            $estadoReal = ($estadoBase === 'AC') ? calcularEstadoUafeReal($entrega, $vencUafe) : 'PE';
 
             if (!isset($mapa[$idEmpr])) {
                 $mapa[$idEmpr] = array();
@@ -7654,12 +7623,10 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
                 $mapa[$idEmpr][$idProv] = false;
             }
 
-            if ($resultado['vencido']) {
+            if ($estadoReal === 'VC') {
                 $mapa[$idEmpr][$idProv] = true;
             }
         } while ($oCon->SiguienteRegistro());
-    } else {
-        error_log('UAFE: mapa vencidos sin resultados');
     }
 
     return $mapa;
@@ -8417,8 +8384,10 @@ function consultarAdjuntosUafe($aForm = '')
                 $fecEnt = "---";
             }
 
-            $estadoCalculado = evaluarVencimientoUafeAdjunto($estado, $oCon->f('fecha_entrega'), $fechaVencimientoUafe);
-            $estadoCalculado = is_array($estadoCalculado) ? $estadoCalculado['estado_visual'] : $estadoCalculado;
+            $estadoBase = strtoupper(trim((string) $estado));
+            $estadoBase = $estadoBase !== '' ? $estadoBase : 'PE';
+            $estadoReal = ($estadoBase === 'AC') ? calcularEstadoUafeReal($oCon->f('fecha_entrega'), $fechaVencimientoUafe) : 'PE';
+            $estadoCalculado = ($estadoReal === 'VC') ? 'VE' : $estadoReal;
 
             $estadoMostrar = $estadoCalculado;
 

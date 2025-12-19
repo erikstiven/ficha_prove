@@ -1573,8 +1573,8 @@ if (isset($_REQUEST['codpedi'])) {
                                 </div>
                                 <div class="modal-body">
                                     <p class="lead" style="margin-bottom: 15px;">
-                                        Se detectan documentos UAFE vencidos.<br>
-                                        Este proceso sincroniza el estado real de los proveedores.
+                                        Se detectaron proveedores con documentación UAFE vencida.<br>
+                                        Para sincronizar el estado real de los proveedores, ejecute el recálculo global.
                                     </p>
 
                                     <div class="row" id="uafeResumenNumerico">
@@ -1607,9 +1607,9 @@ if (isset($_REQUEST['codpedi'])) {
                                             <input type="checkbox" id="uafeNoMostrarHoy"> No mostrar de nuevo hoy
                                         </label>
                                     </div>
-                                    <button type="button" class="btn btn-default" data-dismiss="modal" id="btnCerrarModalUafe">Cancelar</button>
+                                    <button type="button" class="btn btn-default" data-dismiss="modal" id="btnCerrarModalUafe">Cerrar</button>
                                     <button type="button" class="btn btn-primary" id="btnRecalcularUafeGlobal" onclick="ejecutarRecalculoUafeGlobal();">
-                                        Recalcular estados UAFE
+                                        Recalcular estados UAFE (GLOBAL)
                                     </button>
                                 </div>
                             </div>
@@ -1672,7 +1672,6 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function procesarResumenAlertasUafe(resumen) {
-            console.log('UAFE: respuesta obtenerResumenAlertasUafe', resumen);
             var vencidos = (resumen && resumen.vencidos !== undefined) ? parseInt(resumen.vencidos, 10) : 0;
             var totalEvaluables = (resumen && resumen.total_evaluables !== undefined) ? parseInt(resumen.total_evaluables, 10) : 0;
 
@@ -1680,18 +1679,6 @@ if (isset($_REQUEST['codpedi'])) {
             $('#uafeTotalEvaluables').text(isNaN(totalEvaluables) ? 0 : totalEvaluables);
 
             limpiarDetalleRecalculoUafe();
-            $('#btnRecalcularUafeGlobal').prop('disabled', false);
-            $('#btnCerrarModalUafe').prop('disabled', false);
-
-            $('#modalAlertasUafe').modal('show');
-        }
-
-        function forzarAperturaModalAlertasUafe() {
-            limpiarDetalleRecalculoUafe();
-
-            $('#uafeVencidosCount').text('0');
-            $('#uafeTotalEvaluables').text('0');
-
             $('#btnRecalcularUafeGlobal').prop('disabled', false);
             $('#btnCerrarModalUafe').prop('disabled', false);
 
@@ -1795,10 +1782,6 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function verificarAlertasUafe() {
-            console.log('UAFE: llamando obtenerResumenAlertasUafe');
-            if (typeof xajax !== 'undefined') {
-                xajax.debug = true;
-            }
             xajax_obtenerResumenAlertasUafe();
         }
 
@@ -1809,7 +1792,6 @@ if (isset($_REQUEST['codpedi'])) {
                 }
             });
 
-            forzarAperturaModalAlertasUafe();
             verificarAlertasUafe();
         });
     </script>
