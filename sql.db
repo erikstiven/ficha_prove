@@ -1,0 +1,32 @@
+//-------------------------------------------TABLA ADJUNTOS DE PROVEEDORES---------------------
+//se guardan documentos en esta tabl al gestionar el cumplimiento de los documentos uafe hace relacion a la tabla de 
+TABLA:comercial.adjuntos_clpv
+id	integer	NO	
+empr_cod_empr	integer	NO	
+titulo	character varying	NO	200
+ruta	character varying	NO	500
+estado	character varying	YES	2
+usuario_ingresa	integer	NO	
+fecha_ingresa	timestamp without time zone	YES	
+usuario_actualiza	integer	YES	
+fecha_actualiza	timestamp without time zone	YES	
+//-------------------------------------------TABLA ADJUNTOS UAFE---------------------
+TABLA:comercial.archivos_uafe
+id	integer	NO	
+empr_cod_empr	integer	NO	
+titulo	character varying	NO	200
+ruta	character varying	NO	500
+estado	character varying	YES	2
+usuario_ingresa	integer	NO	
+fecha_ingresa	timestamp without time zone	YES	
+usuario_actualiza	integer	YES	
+fecha_actualiza	timestamp without time zone	YES	
+//-------------------------------------------TABLA TIPO DE PROVEEDOR---------------------
+TABLA:saetprov
+tprov_cod_tprov	character varying	NO	3
+tprov_cod_empr	integer	NO	
+tprov_des_tprov	character varying	YES	100
+tprov_venc_uafe	date	YES	
+//-------------------------------------------INSERT SACADO DE LA BASE DE DATOS DE ADJUNTOS CLPV---------------------
+INSERT INTO "" ("id", "id_empresa", "id_sucursal", "id_clpv", "id_contrato", "titulo", "ruta", "estado", "user_web", "fecha_server", "id_archivo_uafe", "fecha_entrega", "periodo_uafe", "fecha_vencimiento_uafe") VALUES (33, 1, 1, 15, NULL, 'DOCUMENTO 002', NULL, 'AC', NULL, NULL, 2, '2025-12-18 17:03:42.12297', 2025, '2026-12-01');
+
