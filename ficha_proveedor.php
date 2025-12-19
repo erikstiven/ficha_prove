@@ -1719,11 +1719,13 @@ if (isset($_REQUEST['codpedi'])) {
 
     <script src="js/uafe_bloqueo.js"></script>
 
-    <script>
-        window.addEventListener('load', function() {
-            cargarModalRecalculoUafe();
-        });
-    </script>
+    <?php if ($usaUAFE == 't') { ?>
+        <script>
+            window.addEventListener('load', function() {
+                cargarModalRecalculoUafe();
+            });
+        </script>
+    <?php } ?>
 
 
     <script>
