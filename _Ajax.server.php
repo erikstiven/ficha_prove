@@ -7182,21 +7182,39 @@ function FooterMap($id_contrato, $opcion)
 const UAFE_DIAS_AVISO_VENCIMIENTO = 30;
 const UAFE_MODAL_OMITIR_SESION_KEY = 'uafe_modal_omitido';
 
-function obtenerEmpresasConUafeActivas($oCon)
+function obtenerEmpresasConUafeActivas($oCon, $oIfx = null)
 {
     $empresas = array();
 
-    $sql = "
-        SELECT empr_cod_empr
-        FROM saeempr
-        WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
-    ";
+    if ($oCon) {
+        $sql = "
+            SELECT empr_cod_empr
+            FROM saeempr
+            WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+        ";
 
-    if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
-        do {
-            $empresas[] = intval($oCon->f('empr_cod_empr'));
-        } while ($oCon->SiguienteRegistro());
+        if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+            do {
+                $empresas[] = intval($oCon->f('empr_cod_empr'));
+            } while ($oCon->SiguienteRegistro());
+        }
     }
+
+    if ($oIfx && empty($empresas)) {
+        $sql = "
+            SELECT empr_cod_empr
+            FROM saeempr
+            WHERE COALESCE(LOWER(emmpr_uafe_cprov), '') IN ('t','true','1','s','si','y')
+        ";
+
+        if ($oIfx->Query($sql) && $oIfx->NumFilas() > 0) {
+            do {
+                $empresas[] = intval($oIfx->f('empr_cod_empr'));
+            } while ($oIfx->SiguienteRegistro());
+        }
+    }
+
+    $empresas = array_values(array_unique($empresas));
 
     return $empresas;
 }
@@ -7263,7 +7281,7 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
         $oIfx->Conectar();
     }
 
-    $empresas = obtenerEmpresasConUafeActivas($oCon);
+    $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
     $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
 
     $vencidos = 0;
@@ -7355,11 +7373,10 @@ function obtenerFechaVencimientoUafe($idempresa, $id_clpv, $oCon)
 
     if ($fecha === '') {
         $sqlFallback = "
-            SELECT tprov_venc_uafe
+            SELECT MAX(tprov_venc_uafe) AS tprov_venc_uafe
             FROM saetprov
             WHERE tprov_cod_empr = $idempresa
               AND COALESCE(tprov_venc_uafe, '') <> ''
-            LIMIT 1
         ";
 
         $fecha = consulta_string($sqlFallback, 'tprov_venc_uafe', $oCon, '');
@@ -7583,7 +7600,12 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
             ON u.id = a.id_archivo_uafe
             AND u.empr_cod_empr = a.id_empresa
             AND u.estado = 'AC'
-        LEFT JOIN saetprov t
+        LEFT JOIN (
+            SELECT tprov_cod_empr, MAX(tprov_venc_uafe) AS tprov_venc_uafe
+            FROM saetprov
+            WHERE COALESCE(tprov_venc_uafe, '') <> ''
+            GROUP BY tprov_cod_empr
+        ) t
             ON t.tprov_cod_empr = a.id_empresa
         WHERE a.id_empresa IN ($lista)
           AND a.id_archivo_uafe IS NOT NULL
@@ -7654,7 +7676,7 @@ function recalcularEstadosUafeGlobal()
     $oIfx->DSN = $DSN_Ifx;
     $oIfx->Conectar();
 
-    $empresas = obtenerEmpresasConUafeActivas($oCon);
+    $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
 
     $resumen = array(
         'evaluados' => 0,
