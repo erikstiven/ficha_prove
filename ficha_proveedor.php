@@ -1067,7 +1067,7 @@ if (isset($_SESSION['U_EMPRESA'])) {
         function notificarDocumentosUAFE() {
             let id_clpv = document.getElementById("codigoCliente").value;
             if (id_clpv !== '' && id_clpv !== '0') {
-                xajax_notificarDocumentosUAFE(xajax.getFormValues("form1"));
+                enviar_mail();
             } else {
                 alert("Seleccione Cliente para continuar...!");
             }

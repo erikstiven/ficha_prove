@@ -1350,7 +1350,7 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                     <td></td>
                     <td></td>
                     <td>
-                        <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
+                        <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
                             DOCUMENTACIÓN UAFE
                             <span class="glyphicon glyphicon-envelope"></span>
                         </button>
