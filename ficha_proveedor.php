@@ -16,6 +16,8 @@ if (isset($_REQUEST['codpedi'])) {
 } else {
     $codpedi = 0;
 }
+
+$usaUAFE = !empty($empresa['emmpr_uafe_cprov']) && $empresa['emmpr_uafe_cprov'] === true;
 ?>
 
 <? if ($ejecuta) { ?>
@@ -64,6 +66,9 @@ if (isset($_REQUEST['codpedi'])) {
     <script type="text/javascript" language="javascript" src="<?= $_COOKIE["JIREH_INCLUDE"] ?>css/bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js"></script>
 
+    <script>
+        window.usaUafeEmpresa = <?= $usaUAFE ? 'true' : 'false' ?>;
+    </script>
 
     <!-- Georeferencia -->
     <script type="text/javascript" language="JavaScript" src="<?= $_COOKIE["JIREH_INCLUDE"] ?>js/maps/georeferencia.js"></script>
@@ -185,7 +190,20 @@ if (isset($_REQUEST['codpedi'])) {
             xajax_consultar_cash(clpv);
         }
 
+        function esUafeActivo() {
+            return typeof window.usaUafeEmpresa !== 'undefined' && window.usaUafeEmpresa === true;
+        }
+
         function cargarModalRecalculoUafe() {
+            if (!esUafeActivo()) {
+                return;
+            }
+
+            if (!$('#modalUafeRecalculo').length) {
+                console.error('Modal UAFE no existe en el DOM');
+                return;
+            }
+
             xajax_obtenerConteoProveedoresUafeVencida();
         }
 
@@ -980,6 +998,10 @@ if (isset($_REQUEST['codpedi'])) {
         //----------------------------------------------------------------
 
         function eliminarArchivoUAFE(id_uafe, id_clpv, id_adj) {
+            if (!esUafeActivo()) {
+                return;
+            }
+
               Swal.fire({
                 title: 'Estas seguro que deseas eliminar este archivo',
                 text: "",
@@ -1017,6 +1039,10 @@ if (isset($_REQUEST['codpedi'])) {
 
         // Consultar documentos UAFE del proveedor seleccionado
         function consultarAdjuntosUafe() {
+            if (!esUafeActivo()) {
+                return;
+            }
+
             console.log("CLICK: ejecutar UAFE");
             console.log("Cliente =", $("#codigoCliente").val());
 
@@ -1047,11 +1073,19 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function guardarAdjuntosUAFE() {
+            if (!esUafeActivo()) {
+                return;
+            }
+
             let id_clpv = document.getElementById("codigoCliente").value;
             xajax_guardarAdjuntosUAFE(id_clpv);
         }
 
         function notificarDocumentosUAFE() {
+            if (!esUafeActivo()) {
+                return;
+            }
+
             let id_clpv = document.getElementById("codigoCliente").value;
             if (id_clpv !== '') {
                 xajax_notificarDocumentosUAFE(id_clpv);
@@ -1090,6 +1124,10 @@ if (isset($_REQUEST['codpedi'])) {
         });
 
         function cambiarEstadoUafe(id_uafe, id_clpv, checked) {
+            if (!esUafeActivo()) {
+                return;
+            }
+
             var valor = checked ? 1 : 0;
             xajax_cambiarEstadoUafe(id_uafe, id_clpv, valor);
         }
@@ -1576,10 +1614,12 @@ if (isset($_REQUEST['codpedi'])) {
                             <div id="divReporteAdjuntos" align="center" width="100%"></div>
                         </div>
 
-                        <div class="col-md-6">
-                            <!-- AQUI SE CARGARÁ LA TABLA UAFE -->
-                            <div id="divReporteAdjuntosUafe" align="center" width="100%"></div>
-                        </div>
+                        <?php if ($usaUAFE) { ?>
+                            <div class="col-md-6">
+                                <!-- AQUI SE CARGARÁ LA TABLA UAFE -->
+                                <div id="divReporteAdjuntosUafe" align="center" width="100%"></div>
+                            </div>
+                        <?php } ?>
 
                     </div>
 
@@ -1589,56 +1629,58 @@ if (isset($_REQUEST['codpedi'])) {
                     <div class="modal fade" id="miModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
                 </div>
 
-                <div class="modal fade" id="modalUafeRecalculo" tabindex="-1" role="dialog" aria-labelledby="modalUafeRecalculoLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-lg" role="document">
-                        <div class="modal-content">
-                            <div class="modal-header uafe-modal-header">
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true" style="color: #fff;">&times;</span>
-                                </button>
-                                <h4 class="modal-title" id="modalUafeRecalculoLabel">
-                                    <i class="fa fa-shield"></i>
-                                    Proceso GLOBAL – Validación normativa UAFE
-                                </h4>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row text-center" style="margin-bottom: 15px;">
-                                    <div class="col-md-6">
-                                        <div class="panel panel-danger uafe-metric">
-                                            <div class="panel-body">
-                                                <h3 class="text-danger" id="uafeTotalVencidos">0</h3>
-                                                <small>Proveedores con UAFE vencido</small>
+                <?php if ($usaUAFE) { ?>
+                    <div class="modal fade" id="modalUafeRecalculo" tabindex="-1" role="dialog" aria-labelledby="modalUafeRecalculoLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header uafe-modal-header">
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true" style="color: #fff;">&times;</span>
+                                    </button>
+                                    <h4 class="modal-title" id="modalUafeRecalculoLabel">
+                                        <i class="fa fa-shield"></i>
+                                        Proceso GLOBAL – Validación normativa UAFE
+                                    </h4>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row text-center" style="margin-bottom: 15px;">
+                                        <div class="col-md-6">
+                                            <div class="panel panel-danger uafe-metric">
+                                                <div class="panel-body">
+                                                    <h3 class="text-danger" id="uafeTotalVencidos">0</h3>
+                                                    <small>Proveedores con UAFE vencido</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="panel panel-default uafe-metric">
+                                                <div class="panel-body">
+                                                    <h3 id="uafeTotalEvaluados">0</h3>
+                                                    <small>Total proveedores evaluados</small>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="panel panel-default uafe-metric">
-                                            <div class="panel-body">
-                                                <h3 id="uafeTotalEvaluados">0</h3>
-                                                <small>Total proveedores evaluados</small>
-                                            </div>
-                                        </div>
+
+                                    <div class="alert alert-warning">
+                                        <i class="fa fa-exclamation-triangle"></i>
+                                        <strong>Existen proveedores activos cuyos documentos requeridos por la UAFE no cumplen con el período vigente.</strong>
+                                        El recálculo sincroniza el estado del proveedor con su condición real de cumplimiento,
+                                        independientemente del proveedor en pantalla.
                                     </div>
-                                </div>
 
-                                <div class="alert alert-warning">
-                                    <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Existen proveedores activos cuyos documentos requeridos por la UAFE no cumplen con el período vigente.</strong>
-                                    El recálculo sincroniza el estado del proveedor con su condición real de cumplimiento,
-                                    independientemente del proveedor en pantalla.
+                                    <div id="uafeRecalculoResultado" class="alert d-none" style="margin-bottom: 0;"></div>
                                 </div>
-
-                                <div id="uafeRecalculoResultado" class="alert d-none" style="margin-bottom: 0;"></div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
-                                <button type="button" class="btn btn-primary" id="btnRecalcularUafe" onclick="ejecutarRecalculoUafe();">
-                                    <i class="fa fa-sync"></i> Recalcular estados UAFE
-                                </button>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                                    <button type="button" class="btn btn-primary" id="btnRecalcularUafe" onclick="ejecutarRecalculoUafe();">
+                                        <i class="fa fa-sync"></i> Recalcular estados UAFE
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                <?php } ?>
 
                 <div class="modal fade" id="ModalMapa" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg" style="width: 90%">
@@ -1717,26 +1759,29 @@ if (isset($_REQUEST['codpedi'])) {
         </div>
     </body>
 
-    <script src="js/uafe_bloqueo.js"></script>
-
-    <script>
-        window.addEventListener('load', function() {
-            cargarModalRecalculoUafe();
-        });
-    </script>
+    <?php if ($usaUAFE) { ?>
+        <script src="js/uafe_bloqueo.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                if (typeof cargarModalRecalculoUafe === 'function') {
+                    cargarModalRecalculoUafe();
+                } else {
+                    console.warn('UAFE activo, pero cargarModalRecalculoUafe no está definida');
+                }
+            });
+        </script>
+    <?php } ?>
 
 
     <script>
         genera_formulario(); /*genera_detalle();genera_form_detalle();*/
     </script>
 
-    <?php
-        if ($usaUAFE == 't') {
-            echo "<script> habilitarEstadoProveedor(true); </script>";
-        } else {
-            echo "<script> habilitarEstadoProveedor(false); </script>";
-        }
-    ?>
+    <?php if ($usaUAFE) { ?>
+        <script>
+            habilitarEstadoProveedor(true);
+        </script>
+    <?php } ?>
     <script src="js/google_maps.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB8pAD65yn2Qtj_DTowH8xUUkUB6U_SRN0&callback=initMap"></script>
 
