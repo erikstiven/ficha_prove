@@ -8334,8 +8334,8 @@ function guardarAdjuntosUAFE($id_clpv)
         if ($cumpleDespues) {
             $mensaje = array(
                 'icon'  => 'success',
-                'title' => 'Documentos UAFE ENTREGADOS',
-                'text'  => 'Se cumplen con todos los documentos solicitados. El proveedor pasará a estado Activo.',
+                'title' => 'Documentos UAFE entregados',
+                'text'  => 'Se cumplen todos los documentos solicitados. El proveedor pasará a estado Activo.',
             );
         } elseif ($cumpliaAntes && !$cumpleDespues) {
             $mensaje = array(
@@ -8355,7 +8355,8 @@ function guardarAdjuntosUAFE($id_clpv)
             icon: '{$mensaje['icon']}',
             title: '{$mensaje['title']}',
             text: '{$mensaje['text']}',
-            confirmButtonText: 'Aceptar'
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#3085d6'
         });");
     }
 
