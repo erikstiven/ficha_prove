@@ -1096,17 +1096,6 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 $tableAdjuntos .= '</tr>';
 
 
-                $tableAdjuntos .= '<tr>';
-                $tableAdjuntos .= '
-                    <td colspan="6" style="padding-top: 10px; padding-bottom: 10px;">
-                        <button type="button" class="btn btn-info btn-sm" onclick="enviar_mail();" style="font-weight: bold;">
-                            Notificar Documentación UAFE Requerida
-                            <span class="glyphicon glyphicon-envelope"></span>
-                        </button>
-                    </td>
-                ';
-                $tableAdjuntos .= '</tr>';
-
                 $tableAdjuntos .= '</table>';
                 //------------------------------------------------------------------
                 //FIN ADJUNTOS APARTADO DE SUBIR ADJUNTOS VISUAL
@@ -1350,6 +1339,18 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                 </td>
 
 
+            </tr>';
+
+        $sHtml .= '<tr id="filaNotificarUafe" style="display:none;">
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>
+                    <button type="button" class="btn btn-info btn-sm" onclick="notificarDocumentosUAFE();" style="font-weight: bold;">
+                        DOCUMENTACIÓN UAFE
+                        <span class="glyphicon glyphicon-envelope"></span>
+                    </button>
+                </td>
             </tr>';
             
 
@@ -7487,16 +7488,7 @@ function validarEstadoUAFEProveedor($id_clpv)
 
     if (!$usaUafe) {
         $oReturn->script("habilitarEstadoProveedor(false);");
-
-        $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-        if ($estadoVisual === '' && empty($id_clpv)) {
-            $estadoVisual = 'AC';
-        }
-
-        if ($estadoVisual !== '') {
-            $oReturn->script("editar('$estadoVisual');");
-        }
-
+        $oReturn->script("toggleNotificarUafe(false);");
         return $oReturn;
     }
 
@@ -7504,15 +7496,119 @@ function validarEstadoUAFEProveedor($id_clpv)
     $bloquear = !$cumple;
 
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
+    $oReturn->script("toggleNotificarUafe(true);");
 
-    $estadoVisual = $bloquear ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-    if ($estadoVisual === '' && empty($id_clpv)) {
-        $estadoVisual = 'AC';
+    return $oReturn;
+}
+
+function obtenerConteoProveedoresUafeVencida()
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
     }
 
-    if ($estadoVisual !== '') {
-        $oReturn->script("editar('$estadoVisual');");
+    global $DSN;
+
+    $oReturn = new xajaxResponse();
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $conteo = 0;
+
+    try {
+        $sql = "
+            SELECT COUNT(DISTINCT a.id_clpv) AS proveedores_a_recalcular
+            FROM saeclpv p
+            JOIN comercial.adjuntos_clpv a
+              ON a.id_clpv    = p.clpv_cod_clpv
+             AND a.id_empresa = p.clpv_cod_empr
+            WHERE
+                p.clpv_est_clpv = 'A'
+                AND a.id_archivo_uafe IS NOT NULL
+                AND a.estado = 'AC'
+                AND a.fecha_vencimiento_uafe IS NOT NULL
+                AND CURRENT_DATE > a.fecha_vencimiento_uafe;
+        ";
+
+        if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+            $conteo = intval($oCon->f('proveedores_a_recalcular'));
+        }
+    } catch (Exception $e) {
+        $oReturn->alert($e->getMessage());
+        return $oReturn;
     }
+
+    $oReturn->script("mostrarModalRecalculoUafe(" . $conteo . ", " . $conteo . ");");
+
+    return $oReturn;
+}
+
+function recalcularEstadosUafeProveedores()
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    global $DSN;
+
+    $oReturn = new xajaxResponse();
+
+    $oCon = new Dbo();
+    $oCon->DSN = $DSN;
+    $oCon->Conectar();
+
+    $conteo = 0;
+
+    try {
+        $sqlConteo = "
+            SELECT COUNT(DISTINCT a.id_clpv) AS proveedores_a_recalcular
+            FROM saeclpv p
+            JOIN comercial.adjuntos_clpv a
+              ON a.id_clpv    = p.clpv_cod_clpv
+             AND a.id_empresa = p.clpv_cod_empr
+            WHERE
+                p.clpv_est_clpv = 'A'
+                AND a.id_archivo_uafe IS NOT NULL
+                AND a.estado = 'AC'
+                AND a.fecha_vencimiento_uafe IS NOT NULL
+                AND CURRENT_DATE > a.fecha_vencimiento_uafe;
+        ";
+
+        if ($oCon->Query($sqlConteo) && $oCon->NumFilas() > 0) {
+            $conteo = intval($oCon->f('proveedores_a_recalcular'));
+        }
+
+        if ($conteo > 0) {
+            $oCon->QueryT('BEGIN;');
+
+            $sqlUpdate = "
+                UPDATE saeclpv p
+                SET clpv_est_clpv = 'P'
+                WHERE p.clpv_est_clpv = 'A'
+                  AND EXISTS (
+                        SELECT 1
+                        FROM comercial.adjuntos_clpv a
+                        WHERE a.id_clpv    = p.clpv_cod_clpv
+                          AND a.id_empresa = p.clpv_cod_empr
+                          AND a.id_archivo_uafe IS NOT NULL
+                          AND a.estado = 'AC'
+                          AND a.fecha_vencimiento_uafe IS NOT NULL
+                          AND CURRENT_DATE > a.fecha_vencimiento_uafe
+                  );
+            ";
+
+            $oCon->QueryT($sqlUpdate);
+            $oCon->QueryT('COMMIT;');
+        }
+    } catch (Exception $e) {
+        $oCon->QueryT('ROLLBACK;');
+        $oReturn->alert($e->getMessage());
+        return $oReturn;
+    }
+
+    $oReturn->script("mostrarResultadoRecalculoUafe(" . $conteo . ");");
 
     return $oReturn;
 }
@@ -8162,7 +8258,6 @@ function consultarAdjuntosUafe($aForm = '')
     $cumple   = proveedorCumpleUafe($idempresa, $id_clpv, $oCon);
     $bloquear = !$cumple;
 
-    $oReturn->script("editar('" . ($bloquear ? 'PE' : 'AC') . "');");
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquear ? 'true' : 'false') . ");");
 
     return $oReturn;
@@ -8213,12 +8308,10 @@ function guardarAdjuntosUAFE($id_clpv)
     sincronizarEstadoProveedorPorUafe($idempresa, $id_clpv, $bloquearEstado);
 
     $oReturn->script("habilitarEstadoProveedor(" . ($bloquearEstado ? 'true' : 'false') . ");");
-
-    $estadoVisual = $bloquearEstado ? 'PE' : obtenerEstadoProveedorInformix($idempresa, $id_clpv);
-    if ($estadoVisual === '') {
-        $estadoVisual = $bloquearEstado ? 'PE' : 'AC';
+    $estadoVisual = obtenerEstadoProveedorInformix($idempresa, $id_clpv);
+    if ($estadoVisual !== '') {
+        $oReturn->script("editar('$estadoVisual');");
     }
-    $oReturn->script("editar('$estadoVisual');");
 
     if ($usaUafe) {
         if ($cumpleDespues) {

@@ -85,6 +85,19 @@ if (isset($_REQUEST['codpedi'])) {
         #coords {
             width: 500px;
         }
+
+        .uafe-modal-header {
+            background-color: #337ab7;
+            color: #fff;
+        }
+
+        .uafe-metric {
+            margin-bottom: 0;
+        }
+
+        .d-none {
+            display: none;
+        }
     </style>
 
 
@@ -170,6 +183,55 @@ if (isset($_REQUEST['codpedi'])) {
 
         function consulta_cash(clpv) {
             xajax_consultar_cash(clpv);
+        }
+
+        function cargarModalRecalculoUafe() {
+            xajax_obtenerConteoProveedoresUafeVencida();
+        }
+
+        function mostrarModalRecalculoUafe(conteo) {
+            var total = arguments.length > 1 ? arguments[1] : conteo;
+            var $boton = $("#btnRecalcularUafe");
+            var $resultado = $("#uafeRecalculoResultado");
+
+            $("#uafeTotalVencidos").text(conteo);
+            $("#uafeTotalEvaluados").text(total);
+
+            $resultado.addClass('d-none').removeClass('alert-success alert-info alert-danger').text('');
+            $boton.prop('disabled', false).html('<i class="fa fa-sync"></i> Recalcular estados UAFE');
+
+            if (parseInt(conteo, 10) > 0) {
+                $boton.show();
+            } else {
+                $boton.hide();
+            }
+
+            $("#modalUafeRecalculo").modal("show");
+        }
+
+        function ejecutarRecalculoUafe() {
+            $("#btnRecalcularUafe")
+                .prop('disabled', true)
+                .html('<i class="fa fa-spinner fa-spin"></i> Recalculando...');
+            xajax_recalcularEstadosUafeProveedores();
+        }
+
+        function mostrarResultadoRecalculoUafe(afectados) {
+            var $resultado = $("#uafeRecalculoResultado");
+
+            if (parseInt(afectados, 10) > 0) {
+                $resultado
+                    .removeClass('d-none alert-info alert-danger')
+                    .addClass('alert-success')
+                    .html('<strong>Proceso completado.</strong><br>Se actualizaron <b>' + afectados + '</b> proveedores a estado <b>PENDIENTE</b>.');
+            } else {
+                $resultado
+                    .removeClass('d-none alert-success alert-danger')
+                    .addClass('alert-info')
+                    .text('No se encontraron proveedores que requieran actualización.');
+            }
+
+            $("#btnRecalcularUafe").hide();
         }
 
         function edit_del_cash(id, exe, clpv) {
@@ -615,9 +677,6 @@ if (isset($_REQUEST['codpedi'])) {
         function seleccionaItem(id) {
             const usaUafe = typeof window.usaUafeEmpresa !== 'undefined' ? window.usaUafeEmpresa : false;
 
-            if (usaUafe) {
-                habilitarEstadoProveedor(true);
-            }
             xajax_seleccionaItem(xajax.getFormValues("form1"), id);
 
             if (usaUafe) {
@@ -999,6 +1058,14 @@ if (isset($_REQUEST['codpedi'])) {
             } else {
                 alert("Seleccione Cliente para continuar...!");
             }
+        }
+
+        function toggleNotificarUafe(mostrar) {
+            var fila = document.getElementById('filaNotificarUafe');
+            if (!fila) {
+                return;
+            }
+            fila.style.display = mostrar ? '' : 'none';
         }
 
     </script>
@@ -1522,6 +1589,57 @@ if (isset($_REQUEST['codpedi'])) {
                     <div class="modal fade" id="miModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true"></div>
                 </div>
 
+                <div class="modal fade" id="modalUafeRecalculo" tabindex="-1" role="dialog" aria-labelledby="modalUafeRecalculoLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header uafe-modal-header">
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true" style="color: #fff;">&times;</span>
+                                </button>
+                                <h4 class="modal-title" id="modalUafeRecalculoLabel">
+                                    <i class="fa fa-shield"></i>
+                                    Proceso GLOBAL – Validación normativa UAFE
+                                </h4>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row text-center" style="margin-bottom: 15px;">
+                                    <div class="col-md-6">
+                                        <div class="panel panel-danger uafe-metric">
+                                            <div class="panel-body">
+                                                <h3 class="text-danger" id="uafeTotalVencidos">0</h3>
+                                                <small>Proveedores con UAFE vencido</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="panel panel-default uafe-metric">
+                                            <div class="panel-body">
+                                                <h3 id="uafeTotalEvaluados">0</h3>
+                                                <small>Total proveedores evaluados</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-warning">
+                                    <i class="fa fa-exclamation-triangle"></i>
+                                    <strong>Existen proveedores activos cuyos documentos requeridos por la UAFE no cumplen con el período vigente.</strong>
+                                    El recálculo sincroniza el estado del proveedor con su condición real de cumplimiento,
+                                    independientemente del proveedor en pantalla.
+                                </div>
+
+                                <div id="uafeRecalculoResultado" class="alert d-none" style="margin-bottom: 0;"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                                <button type="button" class="btn btn-primary" id="btnRecalcularUafe" onclick="ejecutarRecalculoUafe();">
+                                    <i class="fa fa-sync"></i> Recalcular estados UAFE
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal fade" id="ModalMapa" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
                     <div class="modal-dialog modal-lg" style="width: 90%">
                         <div class="modal-content">
@@ -1600,6 +1718,12 @@ if (isset($_REQUEST['codpedi'])) {
     </body>
 
     <script src="js/uafe_bloqueo.js"></script>
+
+    <script>
+        window.addEventListener('load', function() {
+            cargarModalRecalculoUafe();
+        });
+    </script>
 
 
     <script>
