@@ -1593,16 +1593,10 @@ if (isset($_REQUEST['codpedi'])) {
                                 </button>
                                 <h4 class="modal-title" id="modalUafeRecalculoLabel">
                                     <i class="fa fa-shield"></i>
-                                    Validación global UAFE
+                                    Proceso GLOBAL – Validación normativa UAFE
                                 </h4>
                             </div>
                             <div class="modal-body">
-                                <p class="mb-3">
-                                    Se detectaron <strong>proveedores activos</strong> con documentación UAFE
-                                    <strong>vencida</strong>.
-                                    Para mantener la consistencia del sistema, se recomienda recalcular sus estados.
-                                </p>
-
                                 <div class="row text-center" style="margin-bottom: 15px;">
                                     <div class="col-md-6">
                                         <div class="panel panel-danger uafe-metric">
@@ -1624,9 +1618,9 @@ if (isset($_REQUEST['codpedi'])) {
 
                                 <div class="alert alert-warning">
                                     <i class="fa fa-exclamation-triangle"></i>
-                                    <strong>Proceso GLOBAL:</strong>
-                                    Esta acción evaluará todos los proveedores activos con UAFE,
-                                    <u>no depende del proveedor seleccionado</u>.
+                                    <strong>Existen proveedores activos cuyos documentos requeridos por la UAFE no cumplen con el período vigente.</strong>
+                                    El recálculo sincroniza el estado del proveedor con su condición real de cumplimiento,
+                                    independientemente del proveedor en pantalla.
                                 </div>
 
                                 <div id="uafeRecalculoResultado" class="alert d-none" style="margin-bottom: 0;"></div>
