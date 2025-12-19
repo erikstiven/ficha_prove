@@ -7556,7 +7556,7 @@ function obtenerConteoProveedoresUafeVencida()
         return $oReturn;
     }
 
-    $oReturn->script("mostrarModalRecalculoUafe(" . $conteo . ");");
+    $oReturn->script("mostrarModalRecalculoUafe(" . $conteo . ", " . $conteo . ");");
 
     return $oReturn;
 }
