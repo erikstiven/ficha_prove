@@ -1672,6 +1672,7 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function procesarResumenAlertasUafe(resumen) {
+            console.log('UAFE: respuesta obtenerResumenAlertasUafe', resumen);
             var vencidos = (resumen && resumen.vencidos !== undefined) ? parseInt(resumen.vencidos, 10) : 0;
             var totalEvaluables = (resumen && resumen.total_evaluables !== undefined) ? parseInt(resumen.total_evaluables, 10) : 0;
 
@@ -1794,6 +1795,10 @@ if (isset($_REQUEST['codpedi'])) {
         }
 
         function verificarAlertasUafe() {
+            console.log('UAFE: llamando obtenerResumenAlertasUafe');
+            if (typeof xajax !== 'undefined') {
+                xajax.debug = true;
+            }
             xajax_obtenerResumenAlertasUafe();
         }
 

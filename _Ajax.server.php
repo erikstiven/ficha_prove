@@ -7270,61 +7270,78 @@ function obtenerResumenAlertasUafe($diasAviso = UAFE_DIAS_AVISO_VENCIMIENTO)
 
     $oReturn = new xajaxResponse();
 
-    $oCon = new Dbo();
-    $oCon->DSN = $DSN;
-    $oCon->Conectar();
+    try {
+        error_log('UAFE: paso 1 inicio obtenerResumenAlertasUafe');
 
-    $oIfx = null;
-    if (!empty($DSN_Ifx)) {
-        $oIfx = new Dbo();
-        $oIfx->DSN = $DSN_Ifx;
-        $oIfx->Conectar();
-    }
+        $oCon = new Dbo();
+        $oCon->DSN = $DSN;
+        $oCon->Conectar();
+        error_log('UAFE: paso 2 conexion DSN principal OK');
 
-    $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
-    $oReturn->alert('DEBUG UAFE: empresas con UAFE activo = ' . count($empresas));
+        $oIfx = null;
+        if (!empty($DSN_Ifx)) {
+            $oIfx = new Dbo();
+            $oIfx->DSN = $DSN_Ifx;
+            $oIfx->Conectar();
+            error_log('UAFE: paso 3 conexion DSN_Ifx OK');
+        } else {
+            error_log('UAFE: paso 3 sin DSN_Ifx configurado');
+        }
 
-    $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
+        $empresas = obtenerEmpresasConUafeActivas($oCon, $oIfx);
+        error_log('UAFE: paso 4 empresas UAFE activas = ' . count($empresas));
+        $oReturn->alert('UAFE paso 4 OK: empresas=' . count($empresas));
 
-    $vencidos = 0;
+        $mapaVencidos = obtenerMapaVencidosUafeVirtual($empresas, $oCon);
+        error_log('UAFE: paso 5 mapa vencidos construido');
+        $oReturn->alert('UAFE paso 5 OK: mapa vencidos generado');
 
-    foreach ($mapaVencidos as $empresa => $proveedores) {
-        foreach ($proveedores as $estadoVencido) {
-            if ($estadoVencido === true) {
-                $vencidos++;
+        $vencidos = 0;
+
+        foreach ($mapaVencidos as $empresa => $proveedores) {
+            foreach ($proveedores as $estadoVencido) {
+                if ($estadoVencido === true) {
+                    $vencidos++;
+                }
             }
         }
-    }
 
-    $totalEvaluables = 0;
+        $totalEvaluables = 0;
 
-    if ($oIfx) {
-        foreach ($empresas as $empresa) {
-            $sqlProv = "
-                SELECT COUNT(*) AS total
-                FROM saeclpv
-                WHERE clpv_cod_empr = $empresa
-                  AND clpv_est_clpv IN ('A','P')
-            ";
+        if ($oIfx) {
+            foreach ($empresas as $empresa) {
+                $sqlProv = "
+                    SELECT COUNT(*) AS total
+                    FROM saeclpv
+                    WHERE clpv_cod_empr = $empresa
+                      AND clpv_est_clpv IN ('A','P')
+                ";
 
-            if ($oIfx->Query($sqlProv) && $oIfx->NumFilas() > 0) {
-                $totalEvaluables += intval($oIfx->f('total'));
+                if ($oIfx->Query($sqlProv) && $oIfx->NumFilas() > 0) {
+                    $totalEvaluables += intval($oIfx->f('total'));
+                }
+
+                $oIfx->Free();
             }
-
-            $oIfx->Free();
         }
+
+        error_log('UAFE: paso 6 vencidos=' . $vencidos . ' total_evaluables=' . $totalEvaluables);
+        $oReturn->alert('UAFE paso 6 OK: vencidos=' . $vencidos . ' total=' . $totalEvaluables);
+
+        $payload = array(
+            'mostrar'             => true,
+            'vencidos'            => $vencidos,
+            'total_evaluables'    => $totalEvaluables,
+            'ultima_ejecucion'    => isset($_SESSION['uafe_ultima_ejecucion']) ? $_SESSION['uafe_ultima_ejecucion'] : '',
+        );
+
+        $oReturn->script("procesarResumenAlertasUafe(" . json_encode($payload) . ");");
+        error_log('UAFE: paso 7 respuesta xajax enviada');
+        $oReturn->alert('UAFE paso 7 OK: respuesta enviada');
+    } catch (Throwable $e) {
+        error_log('UAFE ERROR: ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+        $oReturn->alert('UAFE ERROR: ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
     }
-
-    $oReturn->alert('DEBUG UAFE: vencidos=' . $vencidos . ' total_evaluables=' . $totalEvaluables);
-
-    $payload = array(
-        'mostrar'             => true,
-        'vencidos'            => $vencidos,
-        'total_evaluables'    => $totalEvaluables,
-        'ultima_ejecucion'    => isset($_SESSION['uafe_ultima_ejecucion']) ? $_SESSION['uafe_ultima_ejecucion'] : '',
-    );
-
-    $oReturn->script("procesarResumenAlertasUafe(" . json_encode($payload) . ");");
 
     return $oReturn;
 }
@@ -7587,6 +7604,7 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
     $mapa = array();
 
     if (empty($empresas)) {
+        error_log('UAFE: mapa vencidos sin empresas');
         return $mapa;
     }
 
@@ -7618,6 +7636,7 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
     ";
 
     if ($oCon->Query($sql) && $oCon->NumFilas() > 0) {
+        error_log('UAFE: mapa vencidos filas=' . $oCon->NumFilas());
         do {
             $idEmpr   = intval($oCon->f('id_empresa'));
             $idProv   = intval($oCon->f('id_clpv'));
@@ -7639,6 +7658,8 @@ function obtenerMapaVencidosUafeVirtual($empresas, $oCon)
                 $mapa[$idEmpr][$idProv] = true;
             }
         } while ($oCon->SiguienteRegistro());
+    } else {
+        error_log('UAFE: mapa vencidos sin resultados');
     }
 
     return $mapa;
