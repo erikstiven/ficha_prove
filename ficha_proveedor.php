@@ -16,6 +16,19 @@ if (isset($_REQUEST['codpedi'])) {
 } else {
     $codpedi = 0;
 }
+
+$usaUafeModal = 'f';
+if (isset($_SESSION['U_EMPRESA'])) {
+    $idEmpresaUafe = intval($_SESSION['U_EMPRESA']);
+    if ($idEmpresaUafe > 0) {
+        $oIfxUafe = new Dbo;
+        $oIfxUafe->DSN = $DSN_Ifx;
+        $oIfxUafe->Conectar();
+        $sqlUafeModal = "SELECT emmpr_uafe_cprov FROM saeempr WHERE empr_cod_empr = $idEmpresaUafe";
+        $usaUafeModal = consulta_string($sqlUafeModal, 'emmpr_uafe_cprov', $oIfxUafe, 'f');
+        $oIfxUafe->Free();
+    }
+}
 ?>
 
 <? if ($ejecuta) { ?>
@@ -1719,7 +1732,7 @@ if (isset($_REQUEST['codpedi'])) {
 
     <script src="js/uafe_bloqueo.js"></script>
 
-    <?php if ($usaUAFE == 't') { ?>
+    <?php if ($usaUafeModal == 't') { ?>
         <script>
             window.addEventListener('load', function() {
                 cargarModalRecalculoUafe();
