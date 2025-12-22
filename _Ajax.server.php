@@ -2300,7 +2300,7 @@ function seleccionaItem($aForm = '', $cliente = 0)
         $oReturn->assign('ruc_cli', 'value', $clpv_ruc_clpv);
         $oReturn->assign('nombre', 'value', $clpv_nom_clpv);
         $oReturn->assign('nombre_comercial', 'value', $clpv_nom_come);
-        $oReturn->assign('clpv_desc_actividades', 'value', $clpv_desc_actividades);
+        $oReturn->assign('clpv_desc_actividades', 'value', htmlspecialchars($clpv_desc_actividades ?? '', ENT_QUOTES));
         $oReturn->assign('grupo', 'value', $grpv_cod_grpv);
         $oReturn->assign('clpv_cod_sucu', 'value', $clpv_cod_sucu);
         $oReturn->assign('zona', 'value', $clpv_cod_zona);
@@ -5391,8 +5391,7 @@ function guardar_cliente($cod, $aForm = '')
     $clpv_tec_sn = $aForm['clpv_tec_sn'];
     $clpv_ubi_lati = $aForm['latitud_tmp'];
     $clpv_ubi_long = $aForm['longitud_tmp'];
-    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
-    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
+    $clpv_desc_actividades = trim($_POST['clpv_desc_actividades'] ?? null);
 
     $codigo_unico = $aForm['codigoUnico'];
     $cod_cuenta_in = $aForm['cod_cuenta_in'];
@@ -6029,6 +6028,7 @@ function update_cliente_frame($aForm = '')
     $clpv_tec_sn = $aForm['clpv_tec_sn'];
     $clpv_ubi_lati = $aForm['latitud_tmp'];
     $clpv_ubi_long = $aForm['longitud_tmp'];
+    $clpv_desc_actividades = trim($_POST['clpv_desc_actividades'] ?? null);
 
 
     $estado = $aForm['estado'];
