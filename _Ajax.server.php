@@ -1217,7 +1217,7 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
         $sHtml .= '<tr>
                         <td>* Descripción de actividades</td>
                         <td colspan="3">
-                            <textarea class="form-control" id="clpv_desc_actividades" name="clpv_desc_actividades" rows="3" style="width: 98%;" required></textarea>
+                            <input class="form-control" type="text" id="clpv_desc_actividades" name="clpv_desc_actividades" maxlength="255" style="width: 98%;" />
                         </td>
                 </tr>';
         $sHtml .= '<tr> 
@@ -5392,12 +5392,12 @@ function guardar_cliente($cod, $aForm = '')
     $clpv_ubi_lati = $aForm['latitud_tmp'];
     $clpv_ubi_long = $aForm['longitud_tmp'];
     $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
+    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
 
     $codigo_unico = $aForm['codigoUnico'];
     $cod_cuenta_in = $aForm['cod_cuenta_in'];
 
     $clpv_cod_mone = $aForm['clpv_cod_mone'];
-    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
 
     //VARIABLES ADICIONALES
 

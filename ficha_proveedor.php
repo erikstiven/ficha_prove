@@ -381,12 +381,6 @@ if (isset($_SESSION['U_EMPRESA'])) {
         }
 
         function guardar() {
-            var descActividades = document.getElementById('clpv_desc_actividades');
-            if (descActividades && descActividades.value.trim() === '') {
-                alert('Debe ingresar la descripción de actividades del proveedor');
-                descActividades.focus();
-                return;
-            }
             if (ProcesarFormulario() == true) {
                 var codigo = document.getElementById('codigoCliente').value;
                 var zona = document.getElementById('zona').value;
