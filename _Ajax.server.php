@@ -1214,6 +1214,12 @@ function genera_formulario_cliente($sAccion = 'nuevo', $aForm = '', $cod, $pedi)
                         <td>' . $ifu->ObjetoHtmlLBL('nombre_comercial') . '</td>
                         <td colspan="3">' . $ifu->ObjetoHtml('nombre_comercial') . '</td>
                 </tr>';
+        $sHtml .= '<tr>
+                        <td>* Descripción de actividades</td>
+                        <td colspan="3">
+                            <textarea class="form-control" id="clpv_desc_actividades" name="clpv_desc_actividades" rows="3" style="width: 98%;" required></textarea>
+                        </td>
+                </tr>';
         $sHtml .= '<tr> 
                         <td>' . $ifu->ObjetoHtmlLBL('grupo') . '</td>
                         <td>' . $ifu->ObjetoHtml('grupo') . '</td>
@@ -2128,7 +2134,7 @@ function seleccionaItem($aForm = '', $cliente = 0)
 				clpv_cod_fpagop, clpv_cod_tprov, clpv_cod_tpago, clpv_cod_paisp,
 				clpv_etu_clpv, clpv_cod_banc, clpv_num_ctab, clpv_rep_clpv,
 				clpv_cod_cact, clpv_nov_clpv, clpv_ret_sn  , clpv_par_rela, clpv_tec_sn, clpv_cod_mone,
-                clpv_ubi_lati, clpv_ubi_long,clpv_cod_uniq, clpv_cod_cuen, clpv_ruc_tran,
+                clpv_ubi_lati, clpv_ubi_long,clpv_cod_uniq, clpv_cod_cuen, clpv_ruc_tran, clpv_desc_actividades,
                 clpv_tip_ctab, clpv_facebook_clpv, clpv_insta_clpv,
                 ident_propi_clpv, fechnaci_propi_clpv, pagina_web_clpv,
                 aniver_empr_clpv, atencion_ofi_clpv,  horarios_aten_clpv, 
@@ -2210,6 +2216,7 @@ function seleccionaItem($aForm = '', $cliente = 0)
 
                 $clpv_ruc_tran = $oIfx->f('clpv_ruc_tran');
                 $clpv_cod_char = $oIfx->f('clpv_cod_char');
+                $clpv_desc_actividades = $oIfx->f('clpv_desc_actividades');
                 $oReturn->assign('cod_char_clpv', 'value', $clpv_cod_char);
 
 
@@ -2293,6 +2300,7 @@ function seleccionaItem($aForm = '', $cliente = 0)
         $oReturn->assign('ruc_cli', 'value', $clpv_ruc_clpv);
         $oReturn->assign('nombre', 'value', $clpv_nom_clpv);
         $oReturn->assign('nombre_comercial', 'value', $clpv_nom_come);
+        $oReturn->assign('clpv_desc_actividades', 'value', $clpv_desc_actividades);
         $oReturn->assign('grupo', 'value', $grpv_cod_grpv);
         $oReturn->assign('clpv_cod_sucu', 'value', $clpv_cod_sucu);
         $oReturn->assign('zona', 'value', $clpv_cod_zona);
@@ -5383,11 +5391,13 @@ function guardar_cliente($cod, $aForm = '')
     $clpv_tec_sn = $aForm['clpv_tec_sn'];
     $clpv_ubi_lati = $aForm['latitud_tmp'];
     $clpv_ubi_long = $aForm['longitud_tmp'];
+    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
 
     $codigo_unico = $aForm['codigoUnico'];
     $cod_cuenta_in = $aForm['cod_cuenta_in'];
 
     $clpv_cod_mone = $aForm['clpv_cod_mone'];
+    $clpv_desc_actividades = trim($aForm['clpv_desc_actividades']);
 
     //VARIABLES ADICIONALES
 
@@ -5564,7 +5574,7 @@ function guardar_cliente($cod, $aForm = '')
                                                 clpv_cod_char, clpv_clopv_clpv, clpv_nom_clpv, 
                                                 clpv_ruc_clpv, clpv_est_clpv, 
                                                 clpv_fec_des,  clpv_fec_has,  clpv_fec_reno,
-                                                clpv_nom_come, clpv_cal_clpv, clpv_est_mon,  
+                                                clpv_nom_come, clpv_desc_actividades, clpv_cal_clpv, clpv_est_mon,  
                                                 clpv_lim_cred, clpv_pro_pago,   
                                                 grpv_cod_grpv, clpv_dsc_clpv, clpv_dsc_prpg,
                                                 clpv_cod_fpagop, clpv_cod_tprov, clpv_cod_tpago,
@@ -5582,7 +5592,7 @@ function guardar_cliente($cod, $aForm = '')
                                                 '$clpv_cod_char', 		'PV', 		'$nombre', 
                                                 '$ruc', 		'$estado',
                                                 '$fecha', 		'$fecha', 	'$fecha',
-                                                '$nombre_come',         'A',            'N',           
+                                                '$nombre_come',         '$clpv_desc_actividades',         'A',            'N',           
                                                 $limite, 		$dia,  		  		
                                                 '$grupo', 		$dsctGeneral, $dsctDetalle,
                                                 '$pago',        '$tipo_prove', '$tipo_pago',
@@ -6148,6 +6158,7 @@ function update_cliente_frame($aForm = '')
 
         $sqlClpv .= "update saeclpv set clpv_nom_clpv = '$nombre', 
                         clpv_nom_come = '$nombre_come',
+                        clpv_desc_actividades = '$clpv_desc_actividades',
                         clpv_fec_modi = CURRENT_DATE, 
                         clpv_ruc_clpv = '$ruc',
                         clv_con_clpv = '$tipo',
