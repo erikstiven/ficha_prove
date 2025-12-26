@@ -217,7 +217,9 @@ if (isset($_SESSION['U_EMPRESA'])) {
                 $boton.hide();
             }
 
-            $("#modalUafeRecalculo").modal("show");
+            if (parseInt(conteo, 10) > 0) {
+                $("#modalUafeRecalculo").modal("show");
+            }
         }
 
         function ejecutarRecalculoUafe() {
