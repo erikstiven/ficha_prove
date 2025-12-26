@@ -5355,7 +5355,9 @@ function guardar_cliente($cod, $aForm = '')
     $nombre = ($aForm['nombre']);
     $sucursal = $aForm['clpv_cod_sucu'];
     $nombre_come = ($aForm['nombre_comercial']);
-    $clpv_desc_actividades = trim($_POST['clpv_desc_actividades'] ?? null);
+    $clpv_desc_actividades = isset($aForm['clpv_desc_actividades'])
+        ? trim($aForm['clpv_desc_actividades'])
+        : '';
     $ruc = $aForm['ruc_cli'];
     $direccion = ($aForm['direccion_cli']);
     $telefono     = $aForm['telefono_cli'];
@@ -5994,7 +5996,9 @@ function update_cliente_frame($aForm = '')
     $nombre = utf8_decode($aForm['nombre']);
     $sucursal = $aForm['clpv_cod_sucu'];
     $nombre_come = utf8_decode($aForm['nombre_comercial']);
-    $clpv_desc_actividades = utf8_decode(trim($_POST['clpv_desc_actividades'] ?? null));
+    $clpv_desc_actividades = isset($aForm['clpv_desc_actividades'])
+        ? utf8_decode(trim($aForm['clpv_desc_actividades']))
+        : '';
     $ruc = $aForm['ruc_cli'];
     $direccion = utf8_decode($aForm['direccion_cli']);
     $telefono = $aForm['telefono_cli'];
