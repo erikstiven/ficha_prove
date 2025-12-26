@@ -7431,15 +7431,7 @@ function aplicarCambiosUafePendientes($idempresa, $idsucursal, $id_clpv, $oCon)
 
 function sincronizarEstadoProveedorPorUafe($idempresa, $id_clpv, $bloquear)
 {
-    global $DSN_Ifx;
-
-    if (empty($DSN_Ifx)) {
-        return;
-    }
-
-    $oIfx = new Dbo();
-    $oIfx->DSN = $DSN_Ifx;
-    $oIfx->Conectar();
+    global $DSN, $DSN_Ifx;
 
     $estadoDestino = $bloquear ? 'P' : 'A';
 
@@ -7452,30 +7444,53 @@ function sincronizarEstadoProveedorPorUafe($idempresa, $id_clpv, $bloquear)
           AND clpv_est_clpv <> '$estadoDestino'
     ";
 
-    $oIfx->Query($sql);
+    if (!empty($DSN_Ifx)) {
+        $oIfx = new Dbo();
+        $oIfx->DSN = $DSN_Ifx;
+        $oIfx->Conectar();
+        $oIfx->Query($sql);
+    }
+
+    if (!empty($DSN)) {
+        $oCon = new Dbo();
+        $oCon->DSN = $DSN;
+        $oCon->Conectar();
+        $oCon->Query($sql);
+    }
 }
 
 function obtenerEstadoProveedorInformix($idempresa, $id_clpv)
 {
-    global $DSN_Ifx;
+    global $DSN, $DSN_Ifx;
 
     if (empty($DSN_Ifx) || !$idempresa || !$id_clpv) {
-        return '';
+        if (empty($DSN)) {
+            return '';
+        }
     }
 
-    $oIfx = new Dbo();
-    $oIfx->DSN = $DSN_Ifx;
-    $oIfx->Conectar();
-
     $sqlEstado = "
-        SELECT clpv_est_clpv
-        FROM saeclpv
-        WHERE clpv_cod_empr = $idempresa
-          AND clpv_cod_clpv = $id_clpv
-        LIMIT 1
-    ";
+            SELECT clpv_est_clpv
+            FROM saeclpv
+            WHERE clpv_cod_empr = $idempresa
+              AND clpv_cod_clpv = $id_clpv
+            LIMIT 1
+        ";
 
-    $estadoDb = consulta_string_func($sqlEstado, 'clpv_est_clpv', $oIfx, '');
+    $estadoDb = '';
+    if (!empty($DSN_Ifx)) {
+        $oIfx = new Dbo();
+        $oIfx->DSN = $DSN_Ifx;
+        $oIfx->Conectar();
+        $estadoDb = consulta_string_func($sqlEstado, 'clpv_est_clpv', $oIfx, '');
+    }
+
+    if ($estadoDb === '' && !empty($DSN)) {
+        $oCon = new Dbo();
+        $oCon->DSN = $DSN;
+        $oCon->Conectar();
+        $estadoDb = consulta_string_func($sqlEstado, 'clpv_est_clpv', $oCon, '');
+    }
 
     if ($estadoDb === 'A') return 'AC';
     if ($estadoDb === 'S') return 'SU';
